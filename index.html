@@ -99,7 +99,19 @@
   .person.alerta,.stat.alerta{animation:destelloBorde 1.4s ease-in-out infinite}
   .stat.s-yel.alerta{border-left-color:#e0a800}
   tr.alerta td{animation:destelloFila 1.4s ease-in-out infinite}
-  @media (prefers-reduced-motion:reduce){.alerta,.alerta td{animation:none!important}}
+  @media (prefers-reduced-motion:reduce){.alerta,.alerta td,.pdias.urg{animation:none!important}}
+  .prox{background:#fffbea;border:1px solid #f3d36b;border-radius:12px;margin-bottom:14px;overflow:hidden}
+  .prox .ph{padding:10px 14px;font-weight:700;display:flex;align-items:center;gap:6px;border-bottom:1px solid #f3e1a0}
+  .prox .phn{margin-left:auto;background:#e0a800;color:#fff;border-radius:999px;padding:1px 9px;font-size:12px}
+  .prox .pr{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #f6e8b8;cursor:pointer}
+  .prox .pr:hover{background:#fff4cc}
+  .prox .ptx{min-width:0;flex:1}
+  .prox .ptx b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pdias{flex:none;min-width:86px;text-align:center;font-size:12px;font-weight:700;border-radius:6px;padding:4px 6px;background:var(--yel-bg);color:var(--yel)}
+  .pdias.urg{animation:destello .7s ease-in-out infinite;color:#7a3e00}
+  .prox .vermas{margin:8px 14px}
+  .pnext{font-size:12px;font-weight:600;color:var(--yel);margin-top:3px}
+  .pnext.urg{color:#b45309}
   main{padding-bottom:90px}
   .upbar{position:fixed;top:0;left:0;right:0;z-index:40;background:#1d4ed8;color:#fff;padding:10px 14px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
   .upbar .btn{border-color:#fff}
@@ -256,7 +268,8 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 let pcols=[], people=[], cols=[], filtro='todos', vista='personas';
 let fileBytes=null, fileName='', sheetName='', range=null, fileHandle=null, lastMod=0, colApe='', ocupado=false;
 const cambios=new Map();   // "Q5" -> {ref,row,col,tipo:'fecha'|'texto'|'vacio',valor}
-let abierta=-1, editando=-1, editP=-1;
+let abierta=-1, editando=-1, editP=-1, verTodosProx=false;
+const PROX_MAX=5;
 
 function toDate(v){
   if(v instanceof Date&&!isNaN(v)){const d=new Date(v.getTime()+12*3600000);return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
@@ -327,6 +340,19 @@ const LBL={rojo:'Vencido',amarillo:'Por vencer',verde:'Al día',naranja:'Pendien
 const CLS={rojo:'c-red',amarillo:'c-yel',verde:'c-grn',naranja:'c-org',gris:'c-gry',vacio:'c-gry'};
 const DOT={rojo:'d-red',amarillo:'d-yel',verde:'d-grn',naranja:'d-org',gris:'d-gry'};
 function peor(p){return p.cnt.rojo?'rojo':p.cnt.amarillo?'amarillo':p.cnt.naranja?'naranja':p.docs.length?'verde':'gris';}
+function enDias(n){return n<=0?'hoy':n===1?'mañana':'en '+n+' días';}
+function panelProximos(){
+  const lst=[];
+  people.forEach((p,i)=>p.docs.forEach(d=>{ if(d.st==='amarillo') lst.push({p,i,d}); }));
+  if(!lst.length) return '';
+  lst.sort((a,b)=>a.d.dias-b.d.dias||a.p.nombre.localeCompare(b.p.nombre));
+  const ver=verTodosProx?lst:lst.slice(0,PROX_MAX);
+  return '<section class="prox"><div class="ph"><span class="phi">⏰</span> Vencen en los próximos '+AVISO+' días <span class="phn">'+lst.length+'</span></div>'+
+    ver.map(r=>'<div class="pr" data-i="'+r.i+'"><span class="pdias'+(r.d.dias<=7?' urg':'')+'">'+enDias(r.d.dias)+'</span>'+
+      '<div class="ptx"><b>'+esc(r.p.nombre)+'</b><div class="grp">'+esc(r.d.doc)+' · '+fmt(r.d.venc)+'</div></div><span class="pen">›</span></div>').join('')+
+    (lst.length>PROX_MAX?'<button type="button" class="btn sm vermas" id="verMasProx">'+(verTodosProx?'Ver menos':'Ver los '+lst.length)+'</button>':'')+
+    '</section>';
+}
 function diasTxt(d){
   if(d.dias==null) return '';
   if(d.dias<0) return 'hace '+(-d.dias)+' día'+(d.dias===-1?'':'s');
@@ -361,10 +387,13 @@ function render(){
     if(filtro!=='todos') ps=ps.filter(p=>p.cnt[filtro]>0);
     ps.sort((a,b)=>ORD[peor(a)]-ORD[peor(b)]||b.cnt.rojo-a.cnt.rojo||a.nombre.localeCompare(b.nombre));
     if(!ps.length){L.innerHTML='<div class="empty">Sin resultados.</div>';return;}
-    L.innerHTML='<div class="grid">'+ps.map(p=>{
+    const panel=(filtro==='todos'||filtro==='amarillo')&&!q?panelProximos():'';
+    L.innerHTML=panel+'<div class="grid">'+ps.map(p=>{
+      const prox=p.docs.filter(d=>d.st==='amarillo').sort((a,b)=>a.dias-b.dias)[0];
+      const lineaProx=prox?'<div class="pnext'+(prox.dias<=7?' urg':'')+'">⏰ '+esc(prox.doc)+' · '+enDias(prox.dias)+(p.cnt.amarillo>1?' <span class="grp">(+'+(p.cnt.amarillo-1)+' más)</span>':'')+'</div>':'';
       const i=people.indexOf(p);
       const ch=['rojo','amarillo','naranja'].filter(s=>p.cnt[s]).map(s=>'<span class="chip '+CLS[s]+(s==='amarillo'?' alerta':'')+'" title="'+LBL[s]+'">'+p.cnt[s]+'</span>').join('')||'<span class="chip c-grn">OK</span>';
-      return '<div class="person'+(p.cnt.amarillo?' alerta':'')+'" data-i="'+i+'"><i class="dot '+DOT[peor(p)]+'"></i><div style="min-width:0"><div class="name">'+esc(p.nombre)+'</div><div class="meta">'+esc([p.id,p.tarea].filter(Boolean).join(' · '))+'</div></div><div class="chips">'+ch+'</div></div>';
+      return '<div class="person'+(p.cnt.amarillo?' alerta':'')+'" data-i="'+i+'"><i class="dot '+DOT[peor(p)]+'"></i><div style="min-width:0"><div class="name">'+esc(p.nombre)+'</div><div class="meta">'+esc([p.id,p.tarea].filter(Boolean).join(' · '))+'</div>'+lineaProx+'</div><div class="chips">'+ch+'</div></div>';
     }).join('')+'</div>';
   } else {
     let rows=[];
@@ -710,7 +739,8 @@ dz.onclick=abrir;
 document.getElementById('q').oninput=()=>{if(!esInicial())marcarNivel();render();};
 document.querySelectorAll('.stat').forEach(s=>s.onclick=()=>{filtro=(filtro===s.dataset.f?'todos':s.dataset.f);if(!esInicial())marcarNivel();render();});
 document.querySelectorAll('#vista button').forEach(b=>b.onclick=()=>{vista=b.dataset.v;document.querySelectorAll('#vista button').forEach(x=>x.classList.toggle('on',x===b));if(!esInicial())marcarNivel();render();});
-document.getElementById('list').addEventListener('click',e=>{const el=e.target.closest('[data-i]'); if(el){editando=-1;editP=-1;ficha(+el.dataset.i);}});
+document.getElementById('list').addEventListener('click',e=>{
+  if(e.target.id==='verMasProx'){verTodosProx=!verTodosProx;render();return;}const el=e.target.closest('[data-i]'); if(el){editando=-1;editP=-1;ficha(+el.dataset.i);}});
 document.getElementById('modal').addEventListener('click',e=>{
   if(e.target.closest('.editrow')||e.target.closest('.pd-edit')||e.target.closest('a')) return;
   const pi=e.target.closest('[data-pi]'); if(pi){editP=+pi.dataset.pi;editando=-1;ficha(abierta);return;}
@@ -722,7 +752,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){ if(editando>=0||ed
 window.addEventListener('beforeunload',e=>{if(cambios.size){e.preventDefault();e.returnValue='';}});
 
 /* ---------- Actualización automática de la app ---------- */
-const APP_V='2026-11-22.4';
+const APP_V='2026-11-22.5';
 let avisoVersion=false;
 async function revisarVersion(){
   if(location.protocol!=='https:'&&location.hostname!=='localhost') return;
