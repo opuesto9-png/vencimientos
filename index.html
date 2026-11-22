@@ -256,6 +256,8 @@ const NO_DOC=['(SAP)','ID/Number','Apellido','Nombre','Mail Personal','Mail Hall
  'Fecha de Nacimiento','Domicilio','Localidad','DNI','Fecha de Ingreso','Vigencia de Contrato','Celular',
  'Conduce SI/NO','Categoria de Licencia','Categoría de Licencia'];
 // Columnas con FECHA DE REALIZACIÓN (se suma la vigencia); el resto son fechas de vencimiento
+// Cursos del sindicato SIN vencimiento: solo se registra la fecha de realización
+const SIN_VTO=/^(seguridad en procesos|sga etiquetado|riesgo electrico|plan de verano|plan de invierno|pase (linea de fuego|proteccion de manos|reglas que salvan vidas|partes moviles|disciplina operativa))/;
 const REALIZ=/^(Expectativas|Inducci[oó]n SHELL|SHELL|PAE|Seguridad en Procesos|SGA|RIESGO|PLAN DE|PASE)/i;
 // Datos personales que se muestran en la ficha (en este orden)
 const PERS=['ID/Number','(SAP)','DNI','CUIL','Fecha de Nacimiento','Tarea s/ AFIP','Celular','Mail Personal','Mail Halli',
@@ -281,6 +283,7 @@ function addMonths(d,m){const r=new Date(d.getFullYear(),d.getMonth()+m,d.getDat
 function evaluar(val,col){
   const d=toDate(val);
   if(d&&d.getFullYear()<1950) return {st:'naranja',texto:'Fecha mal cargada ('+fmt(d)+')',fecha:d};
+  if(d&&col.sinVto) return {st:'hecho',realizado:d,fecha:d};
   if(d){
     const venc=col.meses?addMonths(d,col.meses):d;
     const dias=Math.round((venc-today)/DAY);
@@ -299,7 +302,7 @@ function armarPersona(p){
     const d=Object.assign({ci,doc:c.nombre,grupo:c.grupo,meses:c.meses},e||{st:'vacio'});
     todos.push(d); if(e) docs.push(d);
   });
-  const cnt={rojo:0,amarillo:0,verde:0,naranja:0,gris:0}; docs.forEach(d=>cnt[d.st]++);
+  const cnt={rojo:0,amarillo:0,verde:0,naranja:0,gris:0,hecho:0}; docs.forEach(d=>cnt[d.st]++);
   p.docs=docs; p.todos=todos; p.cnt=cnt;
 }
 
@@ -318,9 +321,9 @@ function procesar(wb){
   cols=[];
   H.forEach((h,i)=>{
     if(!h||noDoc.has(key(h))||i<=Math.max(iA,iN)) return;
-    let meses=0;
-    if(REALIZ.test(h)){const m=h.match(/(\d+)\s*mes/i);meses=m?+m[1]:12;}
-    cols.push({i,nombre:h,grupo:G[i]||'',meses,letra:XLSX.utils.encode_col(range.s.c+i)});
+    let meses=0; const sinVto=SIN_VTO.test(key(h));
+    if(!sinVto&&REALIZ.test(h)){const m=h.match(/(\d+)\s*mes/i);meses=m?+m[1]:12;}
+    cols.push({i,nombre:h,grupo:G[i]||'',meses,sinVto,letra:XLSX.utils.encode_col(range.s.c+i)});
   });
   pcols=[];
   PERS.forEach(n=>{const i=H.findIndex(h=>key(h)===key(n)); if(i>=0) pcols.push({i,nombre:H[i]==='(SAP)'?'SAP':H[i],letra:XLSX.utils.encode_col(range.s.c+i),fecha:/fecha/i.test(H[i])});});
@@ -335,10 +338,10 @@ function procesar(wb){
   return out;
 }
 
-const ORD={rojo:0,amarillo:1,naranja:2,verde:3,gris:4,vacio:5};
-const LBL={rojo:'Vencido',amarillo:'Por vencer',verde:'Al día',naranja:'Pendiente',gris:'No aplica',vacio:'Sin cargar'};
-const CLS={rojo:'c-red',amarillo:'c-yel',verde:'c-grn',naranja:'c-org',gris:'c-gry',vacio:'c-gry'};
-const DOT={rojo:'d-red',amarillo:'d-yel',verde:'d-grn',naranja:'d-org',gris:'d-gry'};
+const ORD={rojo:0,amarillo:1,naranja:2,verde:3,hecho:4,gris:5,vacio:6};
+const LBL={rojo:'Vencido',amarillo:'Por vencer',verde:'Al día',hecho:'Realizado',naranja:'Pendiente',gris:'No aplica',vacio:'Sin cargar'};
+const CLS={rojo:'c-red',amarillo:'c-yel',verde:'c-grn',hecho:'c-grn',naranja:'c-org',gris:'c-gry',vacio:'c-gry'};
+const DOT={rojo:'d-red',amarillo:'d-yel',verde:'d-grn',hecho:'d-grn',naranja:'d-org',gris:'d-gry'};
 function peor(p){return p.cnt.rojo?'rojo':p.cnt.amarillo?'amarillo':p.cnt.naranja?'naranja':p.docs.length?'verde':'gris';}
 function enDias(n){return n<=0?'hoy':n===1?'mañana':'en '+n+' días';}
 function panelProximos(){
@@ -365,6 +368,7 @@ function estadoCell(d){
 }
 function fechaCell(d){
   if(d.st==='vacio') return '<span class="grp">—</span>';
+  if(d.st==='hecho') return fmt(d.realizado)+'<div class="grp">realizado · sin vencimiento</div>';
   if(d.texto) return esc(d.texto);
   return fmt(d.venc)+(d.realizado?'<div class="grp">realizado '+fmt(d.realizado)+' (+'+d.meses+' meses)</div>':'');
 }
@@ -399,7 +403,7 @@ function render(){
     let rows=[];
     people.forEach((p,i)=>p.docs.forEach(d=>rows.push({p,i,d})));
     rows=rows.filter(r=>r.d.st!=='gris');
-    if(filtro!=='todos') rows=rows.filter(r=>r.d.st===filtro); else rows=rows.filter(r=>r.d.st!=='verde');
+    if(filtro!=='todos') rows=rows.filter(r=>r.d.st===filtro); else rows=rows.filter(r=>r.d.st!=='verde'&&r.d.st!=='hecho');
     if(q) rows=rows.filter(r=>key(r.p.nombre+' '+r.p.id+' '+r.d.doc+' '+(r.d.texto||'')).includes(q));
     rows.sort((a,b)=>ORD[a.d.st]-ORD[b.d.st]||((a.d.venc||0)-(b.d.venc||0))||a.p.nombre.localeCompare(b.p.nombre));
     if(!rows.length){L.innerHTML='<div class="empty">Sin resultados.</div>';return;}
@@ -413,12 +417,12 @@ function render(){
 /* ---------- Ficha de la persona (con edición) ---------- */
 function formEdicion(p,d){
   const c=cols[d.ci];
-  const lbl=c.meses?'Fecha de realización':'Fecha de vencimiento';
+  const lbl=(c.meses||c.sinVto)?'Fecha de realización':'Fecha de vencimiento';
   const val=d.fecha&&d.fecha.getFullYear()>=1950?iso(d.fecha):'';
   const txt=d.texto&&!d.fecha?d.texto:'';
   return '<tr class="editrow"><td colspan="3"><div class="edit">'+
     '<div class="ed-t">Editar <b>'+esc(d.doc)+'</b></div>'+
-    '<label>'+lbl+(c.meses?' <span class="grp">(vence a los '+c.meses+' meses)</span>':'')+'<input type="date" id="edFecha" value="'+val+'"></label>'+
+    '<label>'+lbl+(c.meses?' <span class="grp">(vence a los '+c.meses+' meses)</span>':c.sinVto?' <span class="grp">(no vence)</span>':'')+'<input type="date" id="edFecha" value="'+val+'"></label>'+
     '<div class="ed-o">o escribir un estado:</div>'+
     '<div class="quick">'+['Pendiente','Turno ','Completar','No aplica'].map(q=>'<button type="button" class="btn sm" data-q="'+esc(q)+'">'+esc(q.trim())+'</button>').join('')+'</div>'+
     '<input type="text" id="edTexto" placeholder="Ej: TURNO 25/11/2026" value="'+esc(txt)+'">'+
@@ -468,7 +472,7 @@ function ficha(i){
   abierta=i;
   const p=people[i];
   const docs=p.todos.slice().sort((a,b)=>ORD[a.st]-ORD[b.st]||((a.venc||0)-(b.venc||0)));
-  const ch=['rojo','amarillo','naranja','verde'].map(s=>'<span class="chip '+CLS[s]+'">'+p.cnt[s]+' '+LBL[s].toLowerCase()+'</span>').join(' ');
+  const ch=['rojo','amarillo','naranja','verde','hecho'].filter(s=>s!=='hecho'||p.cnt.hecho).map(s=>'<span class="chip '+CLS[s]+'">'+p.cnt[s]+' '+(s==='hecho'?'realizados':LBL[s].toLowerCase())+'</span>').join(' ');
   const filas=docs.filter(d=>d.st!=='vacio'), vacios=docs.filter(d=>d.st==='vacio');
   const fila=d=>{
     const mod=cambios.has(cols[d.ci].letra+p.fila);
@@ -752,7 +756,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){ if(editando>=0||ed
 window.addEventListener('beforeunload',e=>{if(cambios.size){e.preventDefault();e.returnValue='';}});
 
 /* ---------- Actualización automática de la app ---------- */
-const APP_V='2026-11-22.5';
+const APP_V='2026-11-22.6';
 let avisoVersion=false;
 async function revisarVersion(){
   if(location.protocol!=='https:'&&location.hostname!=='localhost') return;
