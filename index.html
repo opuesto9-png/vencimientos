@@ -90,6 +90,16 @@
   .savebar .btn{border-color:#fff}
   .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#1b7a3a;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:30;max-width:90vw;text-align:center}
   .toast.show{opacity:1}
+  /* Destello: documentos que vencen en 30 días o menos */
+  @keyframes destello{0%,100%{background:var(--yel-bg);box-shadow:0 0 0 0 rgba(224,168,0,0)}50%{background:#ffd84d;box-shadow:0 0 0 4px rgba(224,168,0,.45)}}
+  @keyframes destelloBorde{0%,100%{border-color:var(--line);box-shadow:none}50%{border-color:#e0a800;box-shadow:0 0 0 3px rgba(224,168,0,.35)}}
+  @keyframes destelloFila{0%,100%{background:transparent}50%{background:#fff1b8}}
+  .pill.alerta,.chip.alerta{animation:destello 1.4s ease-in-out infinite}
+  .pill.urg{animation-duration:.7s;color:#7a3e00}
+  .person.alerta,.stat.alerta{animation:destelloBorde 1.4s ease-in-out infinite}
+  .stat.s-yel.alerta{border-left-color:#e0a800}
+  tr.alerta td{animation:destelloFila 1.4s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.alerta,.alerta td{animation:none!important}}
   main{padding-bottom:90px}
   .sync{color:#1b7a3a;font-weight:600}
   .sync.off{color:#8a6100}
@@ -162,7 +172,7 @@
       <h2>Tocá acá para elegir la Hoja de Trabajo HPS</h2>
       <p>En la compu también podés arrastrar el archivo. En el celular podés elegirlo desde Descargas, OneDrive o Archivos.</p>
       <p>Lee la hoja <b>PERSONAL</b>.</p>
-      <div class="privacy"><span>🔒</span><div><b>Los datos no salen de este dispositivo.</b> El Excel se lee dentro del navegador, sin internet y sin enviar nada. No se guarda ninguna copia: al cerrar la pestaña o tocar "Cerrar archivo" se borra todo. Si editás algo, se descarga un Excel nuevo con los cambios y el resto del archivo queda igual.</div></div>
+      <div class="privacy"><span>🔒</span><div><b>Los datos no salen de este dispositivo.</b> El Excel se lee dentro de la app, sin enviar nada a internet, y la app no guarda copias: al tocar "Cerrar" se borra todo de la pantalla. Cuando editás y tocás <b>Guardar</b>, los cambios se escriben en el mismo Excel de OneDrive (o, si el dispositivo no lo permite, se descarga una copia actualizada). Lo que <span class="pill c-yel alerta">destella</span> vence en 30 días o menos.</div></div>
     </div>
   </section>
 
@@ -321,7 +331,8 @@ function diasTxt(d){
   return 'faltan '+d.dias+' día'+(d.dias===1?'':'s');
 }
 function estadoCell(d){
-  return '<span class="pill '+CLS[d.st]+'">'+LBL[d.st]+'</span>'+(d.venc?'<div class="grp">'+diasTxt(d)+'</div>':'');
+  const al=d.st==='amarillo'?(d.dias<=7?' alerta urg':' alerta'):'';
+  return '<span class="pill '+CLS[d.st]+al+'">'+(d.st==='amarillo'&&d.dias<=7?'¡Vence ya!':LBL[d.st])+'</span>'+(d.venc?'<div class="grp">'+diasTxt(d)+'</div>':'');
 }
 function fechaCell(d){
   if(d.st==='vacio') return '<span class="grp">—</span>';
@@ -334,6 +345,7 @@ function totales(){
   document.getElementById('nPers').textContent=people.length;
   document.getElementById('nRed').textContent=t.rojo;
   document.getElementById('nYel').textContent=t.amarillo;
+  document.querySelector('.stat.s-yel').classList.toggle('alerta',t.amarillo>0);
   document.getElementById('nOrg').textContent=t.naranja;
 }
 
@@ -348,8 +360,8 @@ function render(){
     if(!ps.length){L.innerHTML='<div class="empty">Sin resultados.</div>';return;}
     L.innerHTML='<div class="grid">'+ps.map(p=>{
       const i=people.indexOf(p);
-      const ch=['rojo','amarillo','naranja'].filter(s=>p.cnt[s]).map(s=>'<span class="chip '+CLS[s]+'" title="'+LBL[s]+'">'+p.cnt[s]+'</span>').join('')||'<span class="chip c-grn">OK</span>';
-      return '<div class="person" data-i="'+i+'"><i class="dot '+DOT[peor(p)]+'"></i><div style="min-width:0"><div class="name">'+esc(p.nombre)+'</div><div class="meta">'+esc([p.id,p.tarea].filter(Boolean).join(' · '))+'</div></div><div class="chips">'+ch+'</div></div>';
+      const ch=['rojo','amarillo','naranja'].filter(s=>p.cnt[s]).map(s=>'<span class="chip '+CLS[s]+(s==='amarillo'?' alerta':'')+'" title="'+LBL[s]+'">'+p.cnt[s]+'</span>').join('')||'<span class="chip c-grn">OK</span>';
+      return '<div class="person'+(p.cnt.amarillo?' alerta':'')+'" data-i="'+i+'"><i class="dot '+DOT[peor(p)]+'"></i><div style="min-width:0"><div class="name">'+esc(p.nombre)+'</div><div class="meta">'+esc([p.id,p.tarea].filter(Boolean).join(' · '))+'</div></div><div class="chips">'+ch+'</div></div>';
     }).join('')+'</div>';
   } else {
     let rows=[];
@@ -389,7 +401,7 @@ function verDato(c,v){
   if(c.fecha&&d){
     let t=fmt(d);
     if(/nacim/i.test(c.nombre)){let e=today.getFullYear()-d.getFullYear();if(today<new Date(today.getFullYear(),d.getMonth(),d.getDate()))e--;t+=' <span class="grp">('+e+' años)</span>';}
-    if(/ingreso/i.test(c.nombre)){const m=(today.getFullYear()-d.getFullYear())*12+today.getMonth()-d.getMonth();t+=' <span class="grp">('+(m>=12?Math.floor(m/12)+' año'+(m>=24?'s':'')+' ':'')+(m%12?m%12+' mes'+(m%12>1?'es':''):'')+')</span>';}
+    if(/ingreso/i.test(c.nombre)){const m=(today.getFullYear()-d.getFullYear())*12+today.getMonth()-d.getMonth();const pz=[];if(m>=12)pz.push(Math.floor(m/12)+' año'+(m>=24?'s':''));if(m%12)pz.push(m%12+' mes'+(m%12>1?'es':''));if(pz.length)t+=' <span class="grp">('+pz.join(' y ')+')</span>';}
     return t;
   }
   let s=norm(v instanceof Date?fmt(v):v);
@@ -427,7 +439,7 @@ function ficha(i){
   const filas=docs.filter(d=>d.st!=='vacio'), vacios=docs.filter(d=>d.st==='vacio');
   const fila=d=>{
     const mod=cambios.has(cols[d.ci].letra+p.fila);
-    return '<tr class="click'+(mod?' mod':'')+'" data-ci="'+d.ci+'"><td>'+esc(d.doc)+(d.grupo?'<div class="grp">'+esc(d.grupo)+'</div>':'')+(mod?'<div class="modtag">modificado</div>':'')+'</td><td>'+estadoCell(d)+'</td><td>'+fechaCell(d)+'<span class="pen">✎</span></td></tr>'+
+    return '<tr class="click'+(mod?' mod':'')+(d.st==='amarillo'?' alerta':'')+'" data-ci="'+d.ci+'"><td>'+esc(d.doc)+(d.grupo?'<div class="grp">'+esc(d.grupo)+'</div>':'')+(mod?'<div class="modtag">modificado</div>':'')+'</td><td>'+estadoCell(d)+'</td><td>'+fechaCell(d)+'<span class="pen">✎</span></td></tr>'+
       (editando===d.ci?formEdicion(p,d):'');
   };
   document.getElementById('modal').innerHTML=
