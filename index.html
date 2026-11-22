@@ -113,6 +113,28 @@
   .pnext{font-size:12px;font-weight:600;color:var(--yel);margin-top:3px}
   .pnext.urg{color:#b45309}
   main{padding-bottom:90px}
+  .toolbar2{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-4px 0 12px}
+  .toolbar2 select,.toolbar2 input[type=date]{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);max-width:100%}
+  .toolbar2 #fDoc{max-width:260px;min-width:0}
+  .toolbar2 select{min-width:0}
+  .toolbar2 .sp{flex:1}
+  #rango{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--mute)}
+  #rango.hidden{display:none}
+  .pnext.fil{color:#1d4ed8}
+  .fmodal{max-width:480px}
+  .modal{min-width:0;max-width:min(760px,100vw)}
+  .modal .top{flex-wrap:wrap}
+  .modal .top>div:first-child{min-width:0;flex:1 1 220px}
+  .modal .top>div:last-child{flex:0 0 auto}
+  .fl input,.fbody input[type=text]{width:100%;min-width:0}
+  .op{min-width:0}
+  .pgrid .pitem{min-width:0}
+  .fbody{display:flex;flex-direction:column;gap:10px}
+  .fl{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600}
+  .fl input{font:inherit;font-size:16px;padding:9px 10px;border:1px solid #c5cad3;border-radius:8px}
+  .op{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+  .nmes{width:64px;font:inherit;padding:4px 6px;border:1px solid #c5cad3;border-radius:6px}
+  @media (max-width:640px){ .toolbar2 select{flex:1 1 100%;width:100%;min-width:0} .toolbar2 #fDoc{max-width:none} .toolbar2 .sp{display:none} .toolbar2 .btn{flex:1} }
   .upbar{position:fixed;top:0;left:0;right:0;z-index:40;background:#1d4ed8;color:#fff;padding:10px 14px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
   .upbar .btn{border-color:#fff}
   .sync{color:#1b7a3a;font-weight:600}
@@ -137,6 +159,8 @@
     body{font-size:15px}
     header{padding:10px 12px;gap:8px;flex-wrap:nowrap}
     header .fname{display:none}
+    header .btn{padding:8px 9px}
+    #btnExport,#btnCap{font-size:14px}
     header h1{font-size:16px}
     header .sub{font-size:11px}
     .btn{padding:9px 12px}
@@ -174,6 +198,8 @@
   <div style="display:flex;gap:8px">
     <button class="btn hidden" id="btnInstall">📲 Instalar</button>
     <button class="btn hidden" id="btnRefresh" title="Traer la última versión del Excel">⟳ Actualizar</button>
+    <button class="btn hidden" id="btnCap" title="Sacar captura de lo que se está viendo">📷</button>
+    <button class="btn hidden" id="btnExport" title="Descargar o compartir el Excel completo">⬇ Excel</button>
     <button class="btn hidden" id="btnClose" title="Borra los datos de la pantalla">Cerrar</button>
     <button class="btn primary" id="btnOpen">Abrir Excel</button>
   </div>
@@ -186,6 +212,7 @@
       <h2>Tocá acá para elegir la Hoja de Trabajo HPS</h2>
       <p>En la compu también podés arrastrar el archivo. En el celular podés elegirlo desde Descargas, OneDrive o Archivos.</p>
       <p>Lee la hoja <b>PERSONAL</b>.</p>
+      <div id="ultimo" class="hidden" style="margin:14px 0"><button class="btn primary" id="btnUltimo"></button><div class="grp" style="margin-top:6px">el último Excel que usaste</div></div>
       <div class="privacy"><span>🔒</span><div><b>Los datos no salen de este dispositivo.</b> El Excel se lee dentro de la app, sin enviar nada a internet, y la app no guarda copias: al tocar "Cerrar" se borra todo de la pantalla. Cuando editás y tocás <b>Guardar</b>, los cambios se escriben en el mismo Excel de OneDrive (o, si el dispositivo no lo permite, se descarga una copia actualizada). Lo que <span class="pill c-yel alerta">destella</span> vence en 30 días o menos.</div></div>
     </div>
   </section>
@@ -204,6 +231,24 @@
         <button data-v="docs">Por documento</button>
       </div>
     </div>
+    <div class="toolbar2">
+      <select id="fPer" title="Filtrar por fecha de vencimiento">
+        <option value="">📅 Todos los vencimientos</option>
+        <option value="venc">Ya vencidos</option>
+        <option value="7">Vencen en 7 días</option>
+        <option value="30">Vencen en 30 días</option>
+        <option value="60">Vencen en 60 días</option>
+        <option value="90">Vencen en 90 días</option>
+        <option value="mes">Vencen este mes</option>
+        <option value="mesprox">Vencen el mes que viene</option>
+        <option value="rango">Entre fechas…</option>
+      </select>
+      <select id="fDoc" title="Filtrar por documento"><option value="">Todos los documentos</option></select>
+      <span id="rango" class="hidden">Desde <input type="date" id="fDesde"> hasta <input type="date" id="fHasta"></span>
+      <span class="sp"></span>
+      <button class="btn sm" id="btnNuevaP">＋ Persona</button>
+      <button class="btn sm" id="btnNuevoC">＋ Curso</button>
+    </div>
     <div class="legend">
       <span><i class="dot d-grn"></i>Al día</span>
       <span><i class="dot d-yel"></i>Vence en 30 días o menos</span>
@@ -216,6 +261,7 @@
 </main>
 
 <div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
+<div class="overlay" id="ov2" style="z-index:15"><div class="modal fmodal" id="modal2"></div></div>
 
 <div class="savebar hidden" id="savebar"><span id="nCamb"></span><button class="btn primary" id="btnSave">Descargar Excel actualizado</button></div>
 <div class="upbar hidden" id="upbar">✨ Hay una versión nueva de la app <button class="btn primary sm" id="btnUpd">Actualizar ahora</button></div>
@@ -270,7 +316,9 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 let pcols=[], people=[], cols=[], filtro='todos', vista='personas';
 let fileBytes=null, fileName='', sheetName='', range=null, fileHandle=null, lastMod=0, colApe='', ocupado=false;
 const cambios=new Map();   // "Q5" -> {ref,row,col,tipo:'fecha'|'texto'|'vacio',valor}
-let abierta=-1, editando=-1, editP=-1, verTodosProx=false;
+let abierta=-1, editando=-1, editP=-1, verTodosProx=false, formAbierto=false;
+let filaEnc=2, sigCol=0, ultimaFila=0, pLet={};
+const XT='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const PROX_MAX=5;
 
 function toDate(v){
@@ -306,6 +354,12 @@ function armarPersona(p){
   p.docs=docs; p.todos=todos; p.cnt=cnt;
 }
 
+function tipoCol(h){
+  const sinVto=SIN_VTO.test(key(h))||/sin vencimiento/i.test(h);
+  let meses=0;
+  if(!sinVto){ const m=h.match(/\((\d+)\s*mes/i); if(m) meses=+m[1]; else if(REALIZ.test(h)) meses=12; }
+  return {meses,sinVto};
+}
 function procesar(wb){
   sheetName=wb.SheetNames.find(n=>key(n)==='personal')||wb.SheetNames[0];
   const ws=wb.Sheets[sheetName];
@@ -317,13 +371,19 @@ function procesar(wb){
   const idx=n=>H.findIndex(h=>key(h)===key(n));
   const iA=idx('Apellido'), iN=idx('Nombre'), iID=idx('ID/Number'), iT=idx('Tarea s/ AFIP'), iSAP=H.findIndex(h=>key(h).includes('sap'));
   colApe=XLSX.utils.encode_col(range.s.c+iA);
+  const L=i=>i>=0?XLSX.utils.encode_col(range.s.c+i):null;
+  pLet={ape:L(iA),nom:L(iN),id:L(iID),tarea:L(iT)};
+  filaEnc=range.s.r+hr+1;
+
+  // primera columna libre después del bloque de encabezados (ignora celdas sueltas muy a la derecha, ej. XES2)
+  let uc=0; while(uc+1<H.length&&H[uc+1]) uc++; while(uc+1<H.length&&!H[uc+1]&&H.slice(uc+2,uc+6).some(Boolean)) { uc++; while(uc+1<H.length&&H[uc+1]) uc++; }
+  sigCol=uc+1;
   const noDoc=new Set(NO_DOC.map(key));
   cols=[];
   H.forEach((h,i)=>{
-    if(!h||noDoc.has(key(h))||i<=Math.max(iA,iN)) return;
-    let meses=0; const sinVto=SIN_VTO.test(key(h));
-    if(!sinVto&&REALIZ.test(h)){const m=h.match(/(\d+)\s*mes/i);meses=m?+m[1]:12;}
-    cols.push({i,nombre:h,grupo:G[i]||'',meses,sinVto,letra:XLSX.utils.encode_col(range.s.c+i)});
+    if(!h||i>uc||noDoc.has(key(h))||i<=Math.max(iA,iN)) return;   // fuera del bloque de encabezados = celda suelta, se ignora
+    const tc=tipoCol(h);
+    cols.push({i,nombre:h,grupo:G[i]||'',meses:tc.meses,sinVto:tc.sinVto,letra:XLSX.utils.encode_col(range.s.c+i)});
   });
   pcols=[];
   PERS.forEach(n=>{const i=H.findIndex(h=>key(h)===key(n)); if(i>=0) pcols.push({i,nombre:H[i]==='(SAP)'?'SAP':H[i],letra:XLSX.utils.encode_col(range.s.c+i),fecha:/fecha/i.test(H[i])});});
@@ -335,6 +395,7 @@ function procesar(wb){
       fila:range.s.r+r+1, vals:cols.map(c=>row[c.i]), pvals:pcols.map(c=>row[c.i])};
     armarPersona(p); out.push(p);
   }
+  ultimaFila=out.reduce((m,p)=>Math.max(m,p.fila),filaEnc);
   return out;
 }
 
@@ -382,32 +443,64 @@ function totales(){
   document.getElementById('nOrg').textContent=t.naranja;
 }
 
+const $=id=>document.getElementById(id);
+function filtrosVto(){ return {per:$('fPer').value, doc:$('fDoc').value, desde:$('fDesde').value, hasta:$('fHasta').value}; }
+function filtroActivo(F){ return !!F.per||F.doc!==''; }
+function coincide(d,F){
+  if(F.doc!==''&&d.ci!==+F.doc) return false;
+  if(!F.per) return true;
+  if(!d.venc) return false;
+  const v=d.venc;
+  switch(F.per){
+    case 'venc': return d.dias<0;
+    case 'mes': return v.getMonth()===today.getMonth()&&v.getFullYear()===today.getFullYear();
+    case 'mesprox': { const n=new Date(today.getFullYear(),today.getMonth()+1,1); return v.getMonth()===n.getMonth()&&v.getFullYear()===n.getFullYear(); }
+    case 'rango': { const a=F.desde?new Date(F.desde+'T00:00'):null, b=F.hasta?new Date(F.hasta+'T00:00'):null; return (!a||v>=a)&&(!b||v<=b); }
+    default: { const n=+F.per; return d.dias>=0&&d.dias<=n; }
+  }
+}
+function llenarDocs(){
+  const s=$('fDoc'), cur=s.value;
+  s.innerHTML='<option value="">Todos los documentos</option>'+cols.map((c,i)=>'<option value="'+i+'">'+esc(c.nombre)+'</option>').join('');
+  if(cur!==''&&+cur<cols.length) s.value=cur;
+}
+function listaPersonas(q,F){
+  let ps=people.filter(p=>!q||key(p.nombre+' '+p.id+' '+p.sap+' '+p.tarea+' '+p.pvals.map(v=>v instanceof Date?'':String(v==null?'':v)).join(' ')).includes(q)||p.docs.some(d=>key(d.doc).includes(q)));
+  if(filtro!=='todos') ps=ps.filter(p=>p.cnt[filtro]>0);
+  if(filtroActivo(F)) ps=ps.filter(p=>p.docs.some(d=>coincide(d,F)));
+  return ps.sort((a,b)=>ORD[peor(a)]-ORD[peor(b)]||b.cnt.rojo-a.cnt.rojo||a.nombre.localeCompare(b.nombre));
+}
+function listaDocs(q,F){
+  const FA=filtroActivo(F); let rows=[];
+  people.forEach((p,i)=>p.docs.forEach(d=>rows.push({p,i,d})));
+  rows=rows.filter(r=>r.d.st!=='gris');
+  if(filtro!=='todos') rows=rows.filter(r=>r.d.st===filtro);
+  else if(!FA) rows=rows.filter(r=>r.d.st!=='verde'&&r.d.st!=='hecho');
+  if(FA) rows=rows.filter(r=>coincide(r.d,F));
+  if(q) rows=rows.filter(r=>key(r.p.nombre+' '+r.p.id+' '+r.d.doc+' '+(r.d.texto||'')).includes(q));
+  return rows.sort((a,b)=>ORD[a.d.st]-ORD[b.d.st]||((a.d.venc||0)-(b.d.venc||0))||a.p.nombre.localeCompare(b.p.nombre));
+}
 function render(){
   const q=key(document.getElementById('q').value);
   const L=document.getElementById('list');
   document.querySelectorAll('.stat').forEach(s=>s.classList.toggle('active',s.dataset.f===filtro&&filtro!=='todos'));
   if(vista==='personas'){
-    let ps=people.filter(p=>!q||key(p.nombre+' '+p.id+' '+p.sap+' '+p.tarea+' '+p.pvals.map(v=>v instanceof Date?'':String(v==null?'':v)).join(' ')).includes(q)||p.docs.some(d=>key(d.doc).includes(q)));
-    if(filtro!=='todos') ps=ps.filter(p=>p.cnt[filtro]>0);
-    ps.sort((a,b)=>ORD[peor(a)]-ORD[peor(b)]||b.cnt.rojo-a.cnt.rojo||a.nombre.localeCompare(b.nombre));
+    const F=filtrosVto(), FA=filtroActivo(F), ps=listaPersonas(q,F);
     if(!ps.length){L.innerHTML='<div class="empty">Sin resultados.</div>';return;}
-    const panel=(filtro==='todos'||filtro==='amarillo')&&!q?panelProximos():'';
+    const panel=(filtro==='todos'||filtro==='amarillo')&&!q&&!FA?panelProximos():'';
     L.innerHTML=panel+'<div class="grid">'+ps.map(p=>{
       const prox=p.docs.filter(d=>d.st==='amarillo').sort((a,b)=>a.dias-b.dias)[0];
-      const lineaProx=prox?'<div class="pnext'+(prox.dias<=7?' urg':'')+'">⏰ '+esc(prox.doc)+' · '+enDias(prox.dias)+(p.cnt.amarillo>1?' <span class="grp">(+'+(p.cnt.amarillo-1)+' más)</span>':'')+'</div>':'';
+      const coinc=FA?p.docs.filter(d=>coincide(d,F)).sort((a,b)=>(a.venc||0)-(b.venc||0)):[];
+      const lineaFil=FA&&coinc.length?'<div class="pnext fil">🔎 '+esc(coinc[0].doc)+(coinc[0].venc?' · '+fmt(coinc[0].venc):'')+(coinc.length>1?' <span class="grp">(+'+(coinc.length-1)+' más)</span>':'')+'</div>':'';
+      const lineaProx=FA?lineaFil:prox?'<div class="pnext'+(prox.dias<=7?' urg':'')+'">⏰ '+esc(prox.doc)+' · '+enDias(prox.dias)+(p.cnt.amarillo>1?' <span class="grp">(+'+(p.cnt.amarillo-1)+' más)</span>':'')+'</div>':'';
       const i=people.indexOf(p);
       const ch=['rojo','amarillo','naranja'].filter(s=>p.cnt[s]).map(s=>'<span class="chip '+CLS[s]+(s==='amarillo'?' alerta':'')+'" title="'+LBL[s]+'">'+p.cnt[s]+'</span>').join('')||'<span class="chip c-grn">OK</span>';
       return '<div class="person'+(p.cnt.amarillo?' alerta':'')+'" data-i="'+i+'"><i class="dot '+DOT[peor(p)]+'"></i><div style="min-width:0"><div class="name">'+esc(p.nombre)+'</div><div class="meta">'+esc([p.id,p.tarea].filter(Boolean).join(' · '))+'</div>'+lineaProx+'</div><div class="chips">'+ch+'</div></div>';
     }).join('')+'</div>';
   } else {
-    let rows=[];
-    people.forEach((p,i)=>p.docs.forEach(d=>rows.push({p,i,d})));
-    rows=rows.filter(r=>r.d.st!=='gris');
-    if(filtro!=='todos') rows=rows.filter(r=>r.d.st===filtro); else rows=rows.filter(r=>r.d.st!=='verde'&&r.d.st!=='hecho');
-    if(q) rows=rows.filter(r=>key(r.p.nombre+' '+r.p.id+' '+r.d.doc+' '+(r.d.texto||'')).includes(q));
-    rows.sort((a,b)=>ORD[a.d.st]-ORD[b.d.st]||((a.d.venc||0)-(b.d.venc||0))||a.p.nombre.localeCompare(b.p.nombre));
+    const F=filtrosVto(), FA=filtroActivo(F), rows=listaDocs(q,F);
     if(!rows.length){L.innerHTML='<div class="empty">Sin resultados.</div>';return;}
-    const nota=filtro==='todos'?'<p class="grp" style="margin:0 0 8px">Se muestran vencidos, por vencer y pendientes. Tocá un recuadro de arriba para filtrar, o una fila para editar.</p>':'';
+    const nota=FA?'<p class="grp" style="margin:0 0 8px">'+rows.length+' resultado'+(rows.length===1?'':'s')+' con el filtro elegido.</p>':filtro==='todos'?'<p class="grp" style="margin:0 0 8px">Se muestran vencidos, por vencer y pendientes. Tocá un recuadro de arriba para filtrar, o una fila para editar.</p>':'';
     L.innerHTML=nota+'<table><thead><tr><th>Persona</th><th>Documento</th><th>Vencimiento</th><th>Estado</th></tr></thead><tbody>'+
       rows.map(r=>'<tr class="click" data-i="'+r.i+'"><td><b>'+esc(r.p.nombre)+'</b><div class="grp">'+esc(r.p.id)+'</div></td><td>'+esc(r.d.doc)+(r.d.grupo?'<div class="grp">'+esc(r.d.grupo)+'</div>':'')+'</td><td>'+fechaCell(r.d)+'</td><td>'+estadoCell(r.d)+'</td></tr>').join('')+
       '</tbody></table>';
@@ -463,7 +556,7 @@ function aplicarDato(p,k,raw){
   p.pvals[k]=ch.tipo==='vacio'?null:ch.valor;
   const iT=pcols.findIndex(x=>/tarea/i.test(x.nombre)), iI=pcols.findIndex(x=>/^id\/number$/i.test(x.nombre)), iS=pcols.findIndex(x=>x.nombre==='SAP');
   if(k===iT) p.tarea=norm(p.pvals[k]); if(k===iI) p.id=norm(p.pvals[k]); if(k===iS) p.sap=norm(p.pvals[k]);
-  cambios.set(ref,Object.assign({ref,row:p.fila,col:range.s.c+c.i,letra:c.letra,ape:p.ape},ch));
+  cambios.set(ref,Object.assign({ref,row:p.fila,col:range.s.c+c.i,letra:c.letra,ape:p.ape,nueva:!!p.nueva},ch));
   editP=-1; render(); ficha(abierta); barra();
 }
 
@@ -481,7 +574,7 @@ function ficha(i){
   };
   document.getElementById('modal').innerHTML=
     '<div class="top"><div><h2>'+esc(p.nombre)+'</h2><div class="grp" style="font-size:13px">'+esc([p.id,p.sap&&('SAP '+p.sap),p.tarea].filter(Boolean).join(' · '))+'</div><div class="chips" style="margin:8px 0 0;flex-wrap:wrap">'+ch+'</div></div>'+
-    '<div style="display:flex;gap:6px;align-items:flex-start"><button class="btn noprint-m" onclick="window.print()">Imprimir</button><button class="btn" id="cerrar">✕</button></div></div>'+
+    '<div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end"><button class="btn" id="btnCapF" title="Sacar captura de esta ficha">📷 Captura</button><button class="btn noprint-m" onclick="window.print()">Imprimir</button><button class="btn" id="cerrar">✕</button></div></div>'+
     '<div class="body">'+(pcols.length?'<details class="datos" open><summary>Datos personales</summary><div class="pgrid">'+pcols.map((c,k)=>{
        const mod=cambios.has(c.letra+p.fila);
        return editP===k?'<div class="pitem full">'+formDato(p,k)+'</div>':
@@ -493,6 +586,7 @@ function ficha(i){
     '</tbody></table></div>';
   document.getElementById('ov').classList.add('show');
   document.getElementById('cerrar').onclick=cerrarFicha;
+  $('btnCapF').onclick=()=>captura();
   if(editando>=0) conectarForm(p);
   if(editP>=0){
     const inp=document.getElementById('pdIn'); inp.focus();
@@ -520,7 +614,7 @@ function conectarForm(p){
 function aplicar(p,ci,ch){
   const c=cols[ci], ref=c.letra+p.fila;
   p.vals[ci]=ch.tipo==='fecha'?ch.valor:ch.tipo==='texto'?ch.valor:null;
-  cambios.set(ref,Object.assign({ref,row:p.fila,col:range.s.c+c.i,letra:c.letra,ape:p.ape},ch));
+  cambios.set(ref,Object.assign({ref,row:p.fila,col:range.s.c+c.i,letra:c.letra,ape:p.ape,nueva:!!p.nueva},ch));
   armarPersona(p); editando=-1; totales(); render(); ficha(abierta); barra();
 }
 
@@ -531,12 +625,14 @@ function cerrarFicha(){
 }
 function vistaInicial(){
   filtro='todos'; vista='personas'; document.getElementById('q').value='';
+  $('fPer').value=''; $('fDoc').value=''; $('fDesde').value=''; $('fHasta').value=''; $('rango').classList.add('hidden');
   document.querySelectorAll('#vista button').forEach(x=>x.classList.toggle('on',x.dataset.v==='personas'));
   render(); window.scrollTo(0,0);
 }
-function esInicial(){return filtro==='todos'&&vista==='personas'&&!document.getElementById('q').value;}
+function esInicial(){return filtro==='todos'&&vista==='personas'&&!document.getElementById('q').value&&!$('fPer').value&&$('fDoc').value==='';}
 // Botón Atrás del celu (o del navegador): primero cierra la edición, después la ficha, después vuelve a la lista inicial
 window.addEventListener('popstate',()=>{
+  if(formAbierto){cerrarFormUI();return;}
   if(abierta>=0&&(editando>=0||editP>=0)){editando=-1;editP=-1;ficha(abierta);history.pushState({v:'ficha'},'');return;}
   if(abierta>=0){cerrarFichaUI();return;}
   if(people.length&&!esInicial()){vistaInicial();return;}
@@ -565,7 +661,7 @@ function rutaHoja(cfb){
 }
 
 function estiloColumna(xml,letra,fila){
-  for(let r=fila-1;r>=1;r--){
+  for(let r=fila-1;r>filaEnc;r--){
     const m=xml.match(new RegExp('<c\\b[^>]*\\br="'+letra+r+'"[^>]*>'));
     if(m){const s=m[0].match(/\bs="(\d+)"/);if(s) return s[1];}
   }
@@ -577,7 +673,9 @@ function ponerCelda(xml,ch){
   const reCell=new RegExp('<c\\b[^>]*\\br="'+ref+'"[^>]*?(?:/>|>[\\s\\S]*?</c>)');
   const old=xml.match(reCell);
   let s=old?((old[0].match(/^<c\b[^>]*?\bs="(\d+)"/)||[])[1]||null):null;
-  if(!s&&ch.tipo==='fecha') s=estiloColumna(xml,ch.letra,ch.row);
+  if(!s&&ch.estiloRef){ const m=xml.match(new RegExp('<c\\b[^>]*\\br="'+ch.estiloRef+'"[^>]*>')); if(m){const x=m[0].match(/\bs="(\d+)"/); if(x) s=x[1];} }
+  if(!s&&!ch.header) s=estiloColumna(xml,ch.letra,ch.row);
+  if(!s&&!ch.header&&ch.col>0){ const prev=XLSX.utils.encode_col(ch.col-1); s=estiloColumna(xml,prev,ch.row+1); }
   const sa=s?' s="'+s+'"':'';
   let nueva;
   if(ch.tipo==='fecha') nueva='<c r="'+ref+'"'+sa+'><v>'+serial(ch.valor)+'</v></c>';
@@ -588,8 +686,16 @@ function ponerCelda(xml,ch){
   // la celda no existe: insertarla en su fila, en orden de columna
   const reRow=new RegExp('<row\\b[^>]*\\br="'+ch.row+'"[^>]*?(/?)>');
   const rm=xml.match(reRow);
-  if(!rm) throw new Error('No encontré la fila '+ch.row+' en el Excel.');
-  if(rm[1]==='/'){const abre=rm[0].replace(/\/>$/,'>');return xml.replace(reRow,()=>abre+nueva+'</row>');}
+  if(!rm){   // la fila no existe (persona nueva): crearla en orden
+    const fila='<row r="'+ch.row+'">'+nueva+'</row>';
+    const reR=/<row\b[^>]*\br="(\d+)"/g; let mm;
+    while((mm=reR.exec(xml))){ if(+mm[1]>ch.row) return xml.slice(0,mm.index)+fila+xml.slice(mm.index); }
+    const fin=xml.indexOf('</sheetData>'); if(fin<0) throw new Error('No encontré los datos de la hoja.');
+    return xml.slice(0,fin)+fila+xml.slice(fin);
+  }
+  const abreSin=rm[0].replace(/\s+spans="[^"]*"/,'');
+  if(rm[1]==='/'){const abre=abreSin.replace(/\/>$/,'>');return xml.replace(reRow,()=>abre+nueva+'</row>');}
+  if(abreSin!==rm[0]){ xml=xml.slice(0,rm.index)+abreSin+xml.slice(rm.index+rm[0].length); rm.index=rm.index; rm[0]=abreSin; }
   const ini=rm.index+rm[0].length, fin=xml.indexOf('</row>',ini);
   const cuerpo=xml.slice(ini,fin);
   let pos=cuerpo.length;
@@ -603,11 +709,17 @@ function generar(base){
   const path=rutaHoja(cfb);
   const e=entrada(cfb,path);
   let xml=dec.decode(e.content);
-  cambios.forEach(ch=>{xml=ponerCelda(xml,ch);});
+  // primero encabezados (cursos nuevos), después datos, ordenados por fila y columna
+  [...cambios.values()].sort((x,y)=>(y.header?1:0)-(x.header?1:0)||x.row-y.row||x.col-y.col).forEach(ch=>{xml=ponerCelda(xml,ch);});
+  let maxFila=0; cambios.forEach(ch=>{ if(ch.nueva) maxFila=Math.max(maxFila,ch.row); });
+  if(maxFila) xml=xml.replace(/(<autoFilter ref="[A-Z]+\d+:[A-Z]+)(\d+)"/,(m,x,n)=>+n<maxFila?x+maxFila+'"':m);
   const bytes=enc.encode(xml);
   e.content=bytes; e.size=bytes.length;
   try{const w=entrada(cfb,'xl/workbook.xml');let wx=dec.decode(w.content);
     if(/<calcPr\b/.test(wx)&&!/fullCalcOnLoad/.test(wx)) wx=wx.replace(/<calcPr\b/,'<calcPr fullCalcOnLoad="1"');
+    let maxF=0; cambios.forEach(ch=>{ if(ch.nueva) maxF=Math.max(maxF,ch.row); });
+    if(maxF){ const sn=sheetName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      wx=wx.replace(new RegExp('(<definedName name="_xlnm._FilterDatabase"[^>]*>'+sn+'!\\$[A-Z]+\\$\\d+:\\$[A-Z]+\\$)(\\d+)'),(m,x,n)=>+n<maxF?x+maxF:m); }
     const wb2=enc.encode(wx); w.content=wb2; w.size=wb2.length;}catch(_){}
   return new Uint8Array(XLSX.CFB.write(cfb,{fileType:'zip',type:'array',compression:true}));
 }
@@ -616,7 +728,9 @@ function verificarFilas(base){
   const wb=XLSX.read(base,{type:'array',sheets:[sheetName]});
   const ws=wb.Sheets[sheetName]; if(!ws) throw new Error('El Excel ya no tiene la hoja '+sheetName+'.');
   cambios.forEach(ch=>{
+    if(ch.header){ const hc=ws[ch.ref]; if(hc&&norm(hc.v)&&norm(hc.v)!==ch.valor) throw new Error('Alguien agregó otra columna en '+ch.letra+' del Excel. Tocá "Actualizar" y volvé a agregar el curso.'); return; }
     const c=ws[colApe+ch.row];
+    if(ch.nueva){ const v=norm(c&&c.v); if(v&&v!==ch.ape) throw new Error('La fila '+ch.row+' ya la ocupó otra persona en el Excel. Tocá "Actualizar" y volvé a dar de alta.'); return; }
     if(norm(c&&c.v)!==ch.ape) throw new Error('La fila '+ch.row+' ya no corresponde a '+ch.ape+' (alguien agregó o borró filas en el Excel). Tocá "Actualizar" y volvé a hacer el cambio.');
   });
 }
@@ -661,14 +775,198 @@ async function guardar(){
   }catch(err){alert(err.message);}
   finally{ocupado=false;btn.disabled=false;}
 }
+function descargar(blob,nombre){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nombre;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+async function exportar(){
+  try{
+    const out=cambios.size?generar(fileBytes):fileBytes;
+    const nombre=fileName.replace(/\.xlsx?$/i,'')+'.xlsx';
+    const blob=new Blob([out],{type:XT}), f=new File([blob],nombre,{type:XT});
+    if(matchMedia('(pointer:coarse)').matches&&navigator.canShare&&navigator.canShare({files:[f]})){
+      try{ await navigator.share({files:[f],title:nombre}); }catch(_){}
+    } else descargar(blob,nombre);
+    if(cambios.size) aviso('El Excel incluye cambios que todavía no guardaste en el original.');
+  }catch(err){ alert('No pude generar el Excel: '+err.message); }
+}
 function aviso(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),5000);}
+
+/* ---------- Captura: imagen de lo que se está viendo (ficha o lista) ---------- */
+const COL={rojo:['#fde7e7','#c62828'],amarillo:['#fff4cc','#8a6100'],verde:['#e3f5e8','#1b7a3a'],hecho:['#e3f5e8','#1b7a3a'],naranja:['#ffe8cc','#b45309'],gris:['#eef0f3','#6b7280'],vacio:['#eef0f3','#6b7280']};
+const FONT='"Segoe UI",Roboto,Arial,sans-serif';
+function envolver(ctx,txt,ancho){
+  const out=[]; String(txt||'').split(/\n/).forEach(par=>{ let l='';
+    par.split(' ').forEach(w=>{ const t=l?l+' '+w:w; if(ctx.measureText(t).width>ancho&&l){out.push(l);l=w;} else l=t; });
+    out.push(l); }); return out;
+}
+function dibujarCaptura(titulo,sub,filas,nota){
+  const W=900, P=28, DPR=2, COLIZQ=470, XPILL=P+COLIZQ+16, MAXF=400;
+  const ext=filas.length>MAXF?filas.length-MAXF:0; filas=filas.slice(0,MAXF);
+  const m=document.createElement('canvas').getContext('2d');
+  const lay=filas.map(f=>{
+    m.font='600 17px '+FONT; const l1=envolver(m,f.t1,COLIZQ);
+    m.font='14px '+FONT; const l2=f.t2?envolver(m,f.t2,COLIZQ):[];
+    m.font='14px '+FONT; const ld=envolver(m,[f.der,f.der2].filter(Boolean).join('\n'),W-P-XPILL);
+    const h=Math.max(l1.length*22+l2.length*19, 30+ld.length*18)+20;
+    return {f,l1,l2,ld,h};
+  });
+  m.font='14px '+FONT; const subL=envolver(m,sub,W-2*P);
+  const H0=P+8+34+subL.length*20+(nota?24:0)+14;
+  const H=H0+lay.reduce((s,x)=>s+x.h,0)+(ext?30:0)+44;
+  const cv=document.createElement('canvas'); cv.width=W*DPR; cv.height=Math.min(H,16000)*DPR;
+  const c=cv.getContext('2d'); c.scale(DPR,DPR);
+  c.fillStyle='#ffffff'; c.fillRect(0,0,W,H);
+  c.fillStyle='#c8102e'; c.fillRect(0,0,W,8);
+  let y=P+8;
+  c.fillStyle='#1d2330'; c.font='700 26px '+FONT; c.textBaseline='top'; c.fillText(titulo,P,y); y+=34;
+  c.fillStyle='#6b7280'; c.font='14px '+FONT; subL.forEach(l=>{c.fillText(l,P,y);y+=20;});
+  if(nota){ c.fillStyle='#1d4ed8'; c.font='600 14px '+FONT; c.fillText(nota,P,y); y+=24; }
+  y+=6; c.fillStyle='#e3e6eb'; c.fillRect(P,y,W-2*P,1); y+=8;
+  lay.forEach(({f,l1,l2,ld,h})=>{
+    let yy=y+10;
+    c.fillStyle='#1d2330'; c.font='600 17px '+FONT; l1.forEach(l=>{c.fillText(l,P,yy);yy+=22;});
+    c.fillStyle='#6b7280'; c.font='14px '+FONT; l2.forEach(l=>{c.fillText(l,P,yy);yy+=19;});
+    if(f.pill){ const [bg,fg]=COL[f.pill.st]||COL.gris; c.font='700 13px '+FONT; const tw=c.measureText(f.pill.txt).width+18;
+      c.fillStyle=bg; if(c.roundRect){c.beginPath();c.roundRect(XPILL,y+10,tw,24,6);c.fill();} else c.fillRect(XPILL,y+10,tw,24);
+      c.fillStyle=fg; c.fillText(f.pill.txt,XPILL+9,y+15); }
+    let yd=y+(f.pill?40:10); c.font='14px '+FONT;
+    ld.forEach((l,k)=>{ c.fillStyle=k===0?'#1d2330':'#6b7280'; c.fillText(l,XPILL,yd); yd+=18; });
+    y+=h; c.fillStyle='#eef0f3'; c.fillRect(P,y-1,W-2*P,1);
+  });
+  if(ext){ c.fillStyle='#6b7280'; c.font='italic 14px '+FONT; c.fillText('… y '+ext+' más (no entran en la imagen)',P,y+8); y+=30; }
+  c.fillStyle='#9aa3b2'; c.font='12px '+FONT;
+  const ahora=new Date(); c.fillText('Vencimientos de Personal · generado el '+fmt(ahora)+' '+String(ahora.getHours()).padStart(2,'0')+':'+String(ahora.getMinutes()).padStart(2,'0'),P,y+16);
+  return cv;
+}
+const PLU={rojo:'vencidos',amarillo:'por vencer',naranja:'pendientes',verde:'al día',hecho:'realizados'};
+function pillDe(d){ return {txt:d.st==='amarillo'&&d.dias<=7?'¡Vence ya!':LBL[d.st],st:d.st}; }
+function textosFecha(d){
+  if(d.st==='hecho') return ['Realizado '+fmt(d.realizado),'sin vencimiento'];
+  if(d.texto) return [d.texto,''];
+  if(d.venc) return ['Vence '+fmt(d.venc), diasTxt(d)+(d.realizado?' · realizado '+fmt(d.realizado):'')];
+  return ['',''];
+}
+function descripcionFiltros(){
+  const F=filtrosVto(), q=norm($('q').value), parts=[];
+  if(filtro!=='todos') parts.push({rojo:'Vencidos',amarillo:'Vencen en 30 días',naranja:'Pendientes / turnos'}[filtro]);
+  if(F.per){ let t=$('fPer').selectedOptions[0].text; if(F.per==='rango') t='Vencen entre '+(F.desde?fmt(new Date(F.desde+'T00:00')):'…')+' y '+(F.hasta?fmt(new Date(F.hasta+'T00:00')):'…'); parts.push(t); }
+  if(F.doc!=='') parts.push('Documento: '+cols[+F.doc].nombre);
+  if(q) parts.push('Búsqueda: "'+q+'"');
+  return parts.join(' · ');
+}
+async function captura(){
+  try{
+    let cv, nombre;
+    if(abierta>=0){
+      const p=people[abierta];
+      const docs=p.todos.filter(d=>d.st!=='vacio').sort((a,b)=>ORD[a.st]-ORD[b.st]||((a.venc||0)-(b.venc||0)));
+      const filas=docs.map(d=>{const [x,y]=textosFecha(d); return {t1:d.doc,t2:d.grupo,pill:pillDe(d),der:x,der2:y};});
+      const res=['rojo','amarillo','naranja','verde','hecho'].filter(s=>p.cnt[s]).map(s=>p.cnt[s]+' '+PLU[s]).join(' · ');
+      cv=dibujarCaptura(p.nombre,[p.id,p.tarea].filter(Boolean).join(' · ')+'\nDocumentación al '+fmt(today),filas,res);   // sin DNI, CUIL, domicilio, teléfono ni mails
+      nombre='Vencimientos '+p.nombre.replace(/[^\wáéíóúñÁÉÍÓÚÑ ,.-]/g,'');
+    } else {
+      const F=filtrosVto(), q=key($('q').value), desc=descripcionFiltros();
+      let filas;
+      if(vista==='personas'){
+        filas=listaPersonas(q,F).map(p=>{
+          const FA=filtroActivo(F), coinc=FA?p.docs.filter(d=>coincide(d,F)).sort((a,b)=>(a.venc||0)-(b.venc||0)):[];
+          const res=['rojo','amarillo','naranja'].filter(s=>p.cnt[s]).map(s=>p.cnt[s]+' '+PLU[s]).join(' · ')||'Todo al día';
+          const prox=p.docs.filter(d=>d.st==='amarillo').sort((a,b)=>a.dias-b.dias)[0];
+          const det=FA&&coinc.length?coinc.map(d=>d.doc+(d.venc?' ('+fmt(d.venc)+')':'')).join(', '):prox?'Próximo: '+prox.doc+' '+enDias(prox.dias):'';
+          return {t1:p.nombre,t2:[p.id,p.tarea].filter(Boolean).join(' · '),pill:{txt:LBL[peor(p)],st:peor(p)},der:res,der2:det};
+        });
+      } else {
+        filas=listaDocs(q,F).map(r=>{const [x,y]=textosFecha(r.d); return {t1:r.p.nombre+(r.p.id?' · '+r.p.id:''),t2:r.d.doc,pill:pillDe(r.d),der:x,der2:y};});
+      }
+      if(!filas.length){ aviso('No hay nada para capturar con este filtro.'); return; }
+      cv=dibujarCaptura('Vencimientos de Personal',(desc||(vista==='personas'?'Todas las personas':'Vencidos, por vencer y pendientes'))+'\nAl '+fmt(today),filas,filas.length+' resultado'+(filas.length===1?'':'s'));
+      nombre='Vencimientos '+fmt(today).replace(/\//g,'-');
+    }
+    const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
+    const f=new File([blob],nombre+'.png',{type:'image/png'});
+    if(matchMedia('(pointer:coarse)').matches&&navigator.canShare&&navigator.canShare({files:[f]})){
+      try{ await navigator.share({files:[f],title:nombre}); }catch(_){}
+    } else { descargar(blob,nombre+'.png'); aviso('Captura descargada.'); }
+  }catch(err){ alert('No pude generar la captura: '+err.message); }
+}
+
+/* ---------- Formularios: alta de persona y curso nuevo ---------- */
+function abrirForm(html){
+  $('modal2').innerHTML=html; $('ov2').classList.add('show');
+  if(!formAbierto){ formAbierto=true; history.pushState({v:'form'},''); }
+  const f=$('modal2').querySelector('input'); if(f) setTimeout(()=>f.focus(),50);
+  $('modal2').querySelectorAll('[data-cerrar]').forEach(b=>b.onclick=cerrarForm);
+}
+function cerrarFormUI(){ formAbierto=false; $('ov2').classList.remove('show'); $('modal2').innerHTML=''; }
+function cerrarForm(){ if(formAbierto&&history.state&&history.state.v==='form'){history.back();return;} cerrarFormUI(); }
+function campo(id,lbl,extra){ return '<label class="fl">'+lbl+'<input type="text" id="'+id+'" '+(extra||'')+'></label>'; }
+function formPersona(){
+  abrirForm('<div class="top"><h2>Nueva persona</h2><button class="btn" data-cerrar>✕</button></div><div class="body fbody">'+
+    campo('nApe','Apellido *')+campo('nNom','Nombre *')+campo('nId','Legajo (ID/Number)')+campo('nTar','Tarea')+
+    '<p class="grp">Se agrega al final de la hoja. DNI, CUIL, contacto y cursos se completan después en su ficha.</p>'+
+    '<div class="ed-b"><button class="btn" data-cerrar>Cancelar</button><button class="btn primary" id="nOk">Agregar</button></div></div>');
+  $('nOk').onclick=()=>{
+    const ape=norm($('nApe').value), nom=norm($('nNom').value), id=norm($('nId').value), tar=norm($('nTar').value);
+    if(!ape||!nom){ alert('Completá apellido y nombre.'); return; }
+    const dup=people.find(p=>key(p.nombre)===key(ape+', '+nom)); if(dup&&!confirm(ape+', '+nom+' ya está en la lista. ¿Agregar igual?')) return;
+    const fila=++ultimaFila;
+    const p={ape,nombre:ape+', '+nom,id,sap:'',tarea:tar,fila,nueva:true,vals:cols.map(()=>null),pvals:pcols.map(c=>/id\/number/i.test(c.nombre)?(id||null):/tarea/i.test(c.nombre)?(tar||null):null)};
+    const add=(letra,valor)=>{ if(!letra||!valor) return; const ref=letra+fila; cambios.set(ref,{ref,row:fila,col:XLSX.utils.decode_col(letra),letra,ape,nueva:true,tipo:'texto',valor}); };
+    add(pLet.ape,ape); add(pLet.nom,nom); add(pLet.id,id); add(pLet.tarea,tar);
+    armarPersona(p); people.push(p); totales(); barra();
+    cerrarFormUI(); history.replaceState({v:null},'');
+    render(); ficha(people.length-1);
+    aviso('Persona agregada. Completá sus datos y tocá Guardar.');
+  };
+}
+function formCurso(){
+  abrirForm('<div class="top"><h2>Nuevo curso o documento</h2><button class="btn" data-cerrar>✕</button></div><div class="body fbody">'+
+    campo('cNom','Nombre del curso *','placeholder="Ej: Manejo Defensivo"')+
+    '<div class="fl">¿Cómo vence?</div>'+
+    '<label class="op"><input type="radio" name="cTipo" value="vence" checked> Se carga la <b>fecha de vencimiento</b></label>'+
+    '<label class="op"><input type="radio" name="cTipo" value="vig"> Se carga la <b>fecha de realización</b> y vence a los <input type="number" id="cMeses" value="12" min="1" max="120" class="nmes"> meses</label>'+
+    '<label class="op"><input type="radio" name="cTipo" value="sin"> <b>Sin vencimiento</b> (solo fecha de realización)</label>'+
+    '<p class="grp">Se agrega como columna nueva al final de la hoja, para todas las personas.</p>'+
+    '<div class="ed-b"><button class="btn" data-cerrar>Cancelar</button><button class="btn primary" id="cOk">Agregar</button></div></div>');
+  $('cOk').onclick=()=>{
+    const nom=norm($('cNom').value); if(!nom){ alert('Escribí el nombre del curso.'); return; }
+    const tipo=$('modal2').querySelector('input[name=cTipo]:checked').value, meses=Math.max(1,parseInt($('cMeses').value)||12);
+    const enc=nom+(tipo==='vig'?' ('+meses+' meses)':tipo==='sin'?' (sin vencimiento)':'');
+    if(cols.some(c=>key(c.nombre)===key(enc)||key(c.nombre)===key(nom))){ alert('Ya existe un curso con ese nombre.'); return; }
+    const i=sigCol++, letra=XLSX.utils.encode_col(range.s.c+i), ref=letra+filaEnc;
+    const ult=cols[cols.length-1];
+    cambios.set(ref,{ref,row:filaEnc,col:range.s.c+i,letra,header:true,tipo:'texto',valor:enc,estiloRef:ult?ult.letra+filaEnc:null});
+    const tc=tipoCol(enc);
+    cols.push({i,nombre:enc,grupo:'',meses:tc.meses,sinVto:tc.sinVto,letra});
+    people.forEach(p=>{p.vals.push(null);armarPersona(p);});
+    llenarDocs(); barra(); cerrarForm(); render();
+    aviso('Curso agregado. Cargá las fechas en las fichas y tocá Guardar.');
+  };
+}
+
+/* ---------- Recordar el último Excel (solo compu: guarda la referencia al archivo, no los datos) ---------- */
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('vencimientos',1); r.onupgradeneeded=()=>r.result.createObjectStore('h'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function guardarHandle(h){ try{ const db=await idb(); db.transaction('h','readwrite').objectStore('h').put(h,'ultimo'); }catch(_){} }
+async function leerHandle(){ try{ const db=await idb(); return await new Promise(r=>{ const q=db.transaction('h').objectStore('h').get('ultimo'); q.onsuccess=()=>r(q.result||null); q.onerror=()=>r(null); }); }catch(_){ return null; } }
+async function inicioAuto(){
+  if(!window.showOpenFilePicker) return;
+  const h=await leerHandle(); if(!h||!h.queryPermission) return;
+  let pm='prompt'; try{ pm=await h.queryPermission({mode:'readwrite'}); }catch(_){}
+  if(pm==='granted'){ try{ await cargar(await h.getFile(),h); return; }catch(_){} }
+  const b=$('btnUltimo'); b.textContent='📂 Abrir '+h.name; $('ultimo').classList.remove('hidden');
+  b.onclick=async e=>{ e.stopPropagation();
+    try{ if(await permiso(h)) await cargar(await h.getFile(),h); }
+    catch(_){ alert('No pude abrir ese archivo (¿lo movieron o le cambiaron el nombre?). Elegilo de nuevo con "Abrir Excel".'); } };
+}
 
 /* ---------- Abrir / actualizar / cerrar archivo ---------- */
 function mostrar(bytes,nombre,mantener){
   const filaAbierta=(mantener&&abierta>=0)?people[abierta].fila:null;
   const wb=XLSX.read(bytes,{type:'array',cellDates:true});
   people=procesar(wb); fileBytes=bytes; fileName=nombre;
-  totales();
+  totales(); llenarDocs();
+  $('btnExport').classList.remove('hidden'); $('btnCap').classList.remove('hidden');
   const modo=fileHandle?'<span class="sync">● Guarda directo en el archivo</span>':'<span class="sync off">● Guarda descargando una copia</span>';
   document.getElementById('sub').innerHTML='Hoy: '+fmt(today)+'<span class="fname"> · '+esc(nombre)+'</span> · '+modo;
   document.getElementById('start').classList.add('hidden');
@@ -687,6 +985,7 @@ async function cargar(file,handle){
   try{
     const bytes=new Uint8Array(await file.arrayBuffer());
     fileHandle=handle||null; lastMod=file.lastModified; cambios.clear(); barra(); cerrarFicha();
+    if(handle) guardarHandle(handle);
     mostrar(bytes,file.name,false);
   }catch(err){alert('No pude leer el archivo: '+err.message);}
 }
@@ -711,7 +1010,7 @@ async function actualizar(silencioso){
 }
 function cerrarArchivo(){
   if(cambios.size&&!confirm('Hay cambios sin guardar. ¿Cerrar igual y perderlos?')) return;
-  people=[]; cols=[]; fileBytes=null; fileHandle=null; cambios.clear(); barra(); cerrarFicha();
+  people=[]; cols=[]; fileBytes=null; fileHandle=null; cambios.clear(); $('btnExport').classList.add('hidden'); $('btnCap').classList.add('hidden'); barra(); cerrarFicha();
   document.getElementById('list').innerHTML='';
   document.getElementById('q').value='';
   document.getElementById('file').value='';
@@ -729,6 +1028,18 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden) actualiza
 setInterval(()=>{if(!document.hidden) actualizar(true);},60000);
 document.getElementById('btnClose').onclick=cerrarArchivo;
 document.getElementById('btnSave').onclick=guardar;
+$('btnExport').onclick=exportar;
+$('btnCap').onclick=captura;
+$('btnNuevaP').onclick=formPersona;
+$('btnNuevoC').onclick=formCurso;
+$('ov2').addEventListener('click',e=>{ if(e.target.id==='ov2') cerrarForm(); });
+$('fPer').onchange=()=>{
+  $('rango').classList.toggle('hidden',$('fPer').value!=='rango');
+  if($('fPer').value&&vista==='personas'){ vista='docs'; document.querySelectorAll('#vista button').forEach(x=>x.classList.toggle('on',x.dataset.v==='docs')); }
+  if(!esInicial()) marcarNivel(); render();
+};
+$('fDoc').onchange=()=>{ if(!esInicial()) marcarNivel(); render(); };
+$('fDesde').onchange=render; $('fHasta').onchange=render;
 fi.onchange=()=>{cargar(fi.files[0],null);fi.value='';};
 const dz=document.getElementById('drop');
 ['dragover','dragenter'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over');}));
@@ -756,7 +1067,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){ if(editando>=0||ed
 window.addEventListener('beforeunload',e=>{if(cambios.size){e.preventDefault();e.returnValue='';}});
 
 /* ---------- Actualización automática de la app ---------- */
-const APP_V='2026-11-22.6';
+const APP_V='2026-11-22.8';
 let avisoVersion=false;
 async function revisarVersion(){
   if(location.protocol!=='https:'&&location.hostname!=='localhost') return;
@@ -777,6 +1088,7 @@ document.getElementById('btnUpd').onclick=()=>{
   location.reload();
 };
 revisarVersion();
+inicioAuto();
 setInterval(()=>{ if(!document.hidden) revisarVersion(); },5*60000);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) revisarVersion(); });
 })();
