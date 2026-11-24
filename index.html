@@ -112,6 +112,26 @@
   .prox .vermas{margin:8px 14px}
   .pnext{font-size:12px;font-weight:600;color:var(--yel);margin-top:3px}
   .pnext.urg{color:#b45309}
+  .agenda{background:#eef6ff;border:1px solid #bcd6f5;border-radius:12px;margin-bottom:14px;overflow:hidden}
+  .agenda .ph{padding:10px 14px;font-weight:700;display:flex;align-items:center;gap:6px;border-bottom:1px solid #cfe3fb}
+  .agenda .phn{margin-left:auto;background:#1d4ed8;color:#fff;border-radius:999px;padding:1px 9px;font-size:12px}
+  .agenda .agr{padding:6px 14px 2px;font-size:11px;font-weight:700;color:#1e4a7a;text-transform:uppercase;letter-spacing:.03em}
+  .agenda .pr{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #dbe9fb;cursor:pointer}
+  .agenda .pr:hover{background:#e0eeff}
+  .agenda .pr.hoy{background:#fff7e0}
+  .agenda .ptx{min-width:0;flex:1}
+  .agenda .ptx b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .agenda .pdias{background:#dbeafe;color:#1d4ed8}
+  .agenda .pdias.urg{background:#ffd84d;color:#7a3e00}
+  .agenda .pdias.pas{background:#eef0f3;color:#6b7280}
+  .agenda .vermas{margin:8px 14px}
+  .agenda .pasados{background:#fff4cc;border-color:#f3d36b;color:#8a6100}
+  .tbox{border-top:1px dashed #c5cad3;padding-top:8px;display:flex;flex-direction:column;gap:6px}
+  .trow{display:flex;gap:6px;flex-wrap:wrap}
+  .trow input{flex:1 1 120px;width:auto;min-width:0}
+  .edit,.edit *{min-width:0;max-width:100%}
+  .editrow td{overflow:hidden}
+  .btn.aus{color:#c62828;border-color:#f3b0b0;align-self:flex-start}
   main{padding-bottom:90px}
   .toolbar2{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-4px 0 12px}
   .toolbar2 select,.toolbar2 input[type=date]{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);max-width:100%}
@@ -160,6 +180,9 @@
     header{padding:10px 12px;gap:8px;flex-wrap:nowrap}
     header .fname{display:none}
     header .btn{padding:8px 9px}
+    header{flex-wrap:wrap}
+    header>div:nth-of-type(2){flex-wrap:wrap;justify-content:flex-end;flex:1 1 auto}
+    #btnRefresh{font-size:0} #btnRefresh::before{content:'⟳';font-size:16px}
     #btnExport,#btnCap{font-size:14px}
     header h1{font-size:16px}
     header .sub{font-size:11px}
@@ -303,7 +326,8 @@ const NO_DOC=['(SAP)','ID/Number','Apellido','Nombre','Mail Personal','Mail Hall
  'Conduce SI/NO','Categoria de Licencia','Categoría de Licencia'];
 // Columnas con FECHA DE REALIZACIÓN (se suma la vigencia); el resto son fechas de vencimiento
 // Cursos del sindicato SIN vencimiento: solo se registra la fecha de realización
-const SIN_VTO=/^(seguridad en procesos|sga etiquetado|riesgo electrico|plan de verano|plan de invierno|pase (linea de fuego|proteccion de manos|reglas que salvan vidas|partes moviles|disciplina operativa))/;
+// Todo lo que empiece con "PASE" es del sindicato y no vence; además, estos nombres aunque cambien de prefijo
+const SIN_VTO=/^pase\b|seguridad en procesos|sga etiquetado|riesgo electrico|plan de verano|plan de invierno|linea de fuego|proteccion de manos|reglas que salvan vidas|partes moviles|disciplina operativa/;
 const REALIZ=/^(Expectativas|Inducci[oó]n SHELL|SHELL|PAE|Seguridad en Procesos|SGA|RIESGO|PLAN DE|PASE)/i;
 // Datos personales que se muestran en la ficha (en este orden)
 const PERS=['ID/Number','(SAP)','DNI','CUIL','Fecha de Nacimiento','Tarea s/ AFIP','Celular','Mail Personal','Mail Halli',
@@ -328,6 +352,15 @@ function toDate(v){
 }
 function addMonths(d,m){const r=new Date(d.getFullYear(),d.getMonth()+m,d.getDate());if(r.getDate()!==d.getDate())r.setDate(0);return r;}
 
+// Turnos cargados como texto: "TURNO 25/11/2026", "Turno 15/7/2026 10:30 hs", "... (NO SE PRESENTO)"
+function parseTurno(t){
+  if(!/turno/i.test(t)) return null;
+  const m=t.match(/(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?/); if(!m) return null;
+  let y=m[3]?+m[3]:today.getFullYear(); if(y<100) y+=2000;
+  const f=new Date(y,+m[2]-1,+m[1]); if(isNaN(f)||f.getMonth()!==+m[2]-1) return null;
+  const h=t.match(/\b(\d{1,2}):(\d{2})\b/);
+  return {fecha:f, hora:h?h[1].padStart(2,'0')+':'+h[2]:'', ausente:/no se present|no asisti|ausente/i.test(t), dias:Math.round((f-today)/DAY)};
+}
 function evaluar(val,col){
   const d=toDate(val);
   if(d&&d.getFullYear()<1950) return {st:'naranja',texto:'Fecha mal cargada ('+fmt(d)+')',fecha:d};
@@ -339,8 +372,9 @@ function evaluar(val,col){
     return {st,venc,realizado:col.meses?d:null,dias,fecha:d};
   }
   const t=norm(val); if(!t) return null;
+  const tu=parseTurno(t);
   if(NA.includes(t.toUpperCase())) return {st:'gris',texto:t};
-  return {st:'naranja',texto:t};
+  return tu?{st:'naranja',texto:t,turno:tu}:{st:'naranja',texto:t};
 }
 
 function armarPersona(p){
@@ -405,6 +439,29 @@ const CLS={rojo:'c-red',amarillo:'c-yel',verde:'c-grn',hecho:'c-grn',naranja:'c-
 const DOT={rojo:'d-red',amarillo:'d-yel',verde:'d-grn',hecho:'d-grn',naranja:'d-org',gris:'d-gry'};
 function peor(p){return p.cnt.rojo?'rojo':p.cnt.amarillo?'amarillo':p.cnt.naranja?'naranja':p.docs.length?'verde':'gris';}
 function enDias(n){return n<=0?'hoy':n===1?'mañana':'en '+n+' días';}
+let verTodosTur=false, verPasados=false;
+function panelTurnos(){
+  const prox=[], pas=[];
+  people.forEach((p,i)=>p.docs.forEach(d=>{ if(d.turno&&!d.turno.ausente) (d.turno.dias>=0?prox:pas).push({p,i,d}); }));
+  if(!prox.length&&!pas.length) return '';
+  const ord=(a,b)=>a.d.turno.fecha-b.d.turno.fecha||(a.d.turno.hora||'99').localeCompare(b.d.turno.hora||'99')||a.p.nombre.localeCompare(b.p.nombre);
+  prox.sort(ord); pas.sort((a,b)=>ord(b,a));
+  const grupo=n=>n===0?'Hoy':n===1?'Mañana':n<=7?'Esta semana':'Más adelante';
+  const ver=verTodosTur?prox:prox.slice(0,8);
+  let html='<section class="agenda"><div class="ph"><span class="phi">📅</span> Turnos del personal <span class="phn">'+prox.length+'</span></div>';
+  let g='';
+  ver.forEach(r=>{ const tu=r.d.turno, gg=grupo(tu.dias);
+    if(gg!==g){ g=gg; html+='<div class="agr">'+gg+'</div>'; }
+    html+='<div class="pr'+(tu.dias<=1?' hoy':'')+'" data-i="'+r.i+'" data-ci="'+r.d.ci+'"><span class="pdias'+(tu.dias<=1?' urg':'')+'">'+fmt(tu.fecha).slice(0,5)+(tu.hora?' · '+tu.hora:'')+'</span>'+
+      '<div class="ptx"><b>'+esc(r.p.nombre)+'</b><div class="grp">'+esc(r.d.doc)+(tu.dias>1?' · '+enDias(tu.dias):'')+'</div></div><span class="pen">›</span></div>'; });
+  if(!prox.length) html+='<div class="agr">No hay turnos próximos cargados.</div>';
+  if(prox.length>8) html+='<button type="button" class="btn sm vermas" id="verMasTur">'+(verTodosTur?'Ver menos':'Ver los '+prox.length)+'</button>';
+  if(pas.length){
+    html+='<button type="button" class="btn sm vermas pasados" id="verPasados">⚠ '+pas.length+' turno'+(pas.length>1?'s':'')+' ya pasado'+(pas.length>1?'s':'')+' sin actualizar '+(verPasados?'▲':'▼')+'</button>';
+    if(verPasados) html+='<div class="agr">Tocá cada uno para cargar la fecha nueva o marcar que no se presentó</div>'+pas.map(r=>'<div class="pr" data-i="'+r.i+'" data-ci="'+r.d.ci+'"><span class="pdias pas">'+fmt(r.d.turno.fecha)+'</span><div class="ptx"><b>'+esc(r.p.nombre)+'</b><div class="grp">'+esc(r.d.doc)+'</div></div><span class="pen">›</span></div>').join('');
+  }
+  return html+'</section>';
+}
 function panelProximos(){
   const lst=[];
   people.forEach((p,i)=>p.docs.forEach(d=>{ if(d.st==='amarillo') lst.push({p,i,d}); }));
@@ -423,7 +480,10 @@ function diasTxt(d){
   if(d.dias===0) return 'vence hoy';
   return 'faltan '+d.dias+' día'+(d.dias===1?'':'s');
 }
+function lblTurno(d){ const tu=d.turno; return tu.ausente?'No se presentó':tu.dias<0?'Turno pasado':tu.dias===0?'📅 Turno HOY':'📅 Turno'; }
 function estadoCell(d){
+  if(d.turno){ const tu=d.turno, al=!tu.ausente&&tu.dias>=0&&tu.dias<=1?' alerta urg':'';
+    return '<span class="pill c-org'+al+'">'+lblTurno(d)+'</span>'+(!tu.ausente?'<div class="grp">'+(tu.dias<0?'hace '+(-tu.dias)+' días, actualizar':enDias(tu.dias))+(tu.hora?' · '+tu.hora+' hs':'')+'</div>':''); }
   const al=d.st==='amarillo'?(d.dias<=7?' alerta urg':' alerta'):'';
   return '<span class="pill '+CLS[d.st]+al+'">'+(d.st==='amarillo'&&d.dias<=7?'¡Vence ya!':LBL[d.st])+'</span>'+(d.venc?'<div class="grp">'+diasTxt(d)+'</div>':'');
 }
@@ -487,7 +547,7 @@ function render(){
   if(vista==='personas'){
     const F=filtrosVto(), FA=filtroActivo(F), ps=listaPersonas(q,F);
     if(!ps.length){L.innerHTML='<div class="empty">Sin resultados.</div>';return;}
-    const panel=(filtro==='todos'||filtro==='amarillo')&&!q&&!FA?panelProximos():'';
+    const panel=(filtro==='todos'&&!q&&!FA?panelTurnos():'')+((filtro==='todos'||filtro==='amarillo')&&!q&&!FA?panelProximos():'');
     L.innerHTML=panel+'<div class="grid">'+ps.map(p=>{
       const prox=p.docs.filter(d=>d.st==='amarillo').sort((a,b)=>a.dias-b.dias)[0];
       const coinc=FA?p.docs.filter(d=>coincide(d,F)).sort((a,b)=>(a.venc||0)-(b.venc||0)):[];
@@ -517,8 +577,10 @@ function formEdicion(p,d){
     '<div class="ed-t">Editar <b>'+esc(d.doc)+'</b></div>'+
     '<label>'+lbl+(c.meses?' <span class="grp">(vence a los '+c.meses+' meses)</span>':c.sinVto?' <span class="grp">(no vence)</span>':'')+'<input type="date" id="edFecha" value="'+val+'"></label>'+
     '<div class="ed-o">o escribir un estado:</div>'+
-    '<div class="quick">'+['Pendiente','Turno ','Completar','No aplica'].map(q=>'<button type="button" class="btn sm" data-q="'+esc(q)+'">'+esc(q.trim())+'</button>').join('')+'</div>'+
-    '<input type="text" id="edTexto" placeholder="Ej: TURNO 25/11/2026" value="'+esc(txt)+'">'+
+    '<div class="quick">'+['Pendiente','Completar','No aplica'].map(q=>'<button type="button" class="btn sm" data-q="'+esc(q)+'">'+esc(q.trim())+'</button>').join('')+'</div>'+
+    '<input type="text" id="edTexto" placeholder="Ej: Pendiente de presentar" value="'+esc(txt)+'">'+
+    '<div class="tbox"><div class="ed-o">📅 o dar un turno:</div><div class="trow"><input type="date" id="edTurno" value="'+(d.turno&&!d.turno.ausente?iso(d.turno.fecha):'')+'"><input type="time" id="edHora" value="'+(d.turno&&!d.turno.ausente?d.turno.hora:'')+'"><button type="button" class="btn sm" id="edTurnoOk">Guardar turno</button></div>'+
+    (d.turno&&!d.turno.ausente?'<button type="button" class="btn sm aus" id="edAus">✖ No se presentó al turno del '+fmt(d.turno.fecha)+'</button>':'')+'</div>'+
     '<div class="ed-b"><button type="button" class="btn" id="edCancel">Cancelar</button><button type="button" class="btn" id="edBorrar">Dejar vacío</button><button type="button" class="btn primary" id="edOk">Guardar</button></div>'+
     '<div class="grp">Si cargás fecha, se usa la fecha. Si la dejás vacía, se guarda el texto.</div>'+
     '</div></td></tr>';
@@ -599,6 +661,14 @@ function ficha(i){
 function conectarForm(p){
   const fF=document.getElementById('edFecha'), fT=document.getElementById('edTexto');
   document.querySelectorAll('.quick [data-q]').forEach(b=>b.onclick=()=>{fT.value=b.dataset.q;fF.value='';fT.focus();});
+  document.getElementById('edTurnoOk').onclick=()=>{
+    const v=document.getElementById('edTurno').value, h=document.getElementById('edHora').value;
+    if(!v){ alert('Elegí la fecha del turno.'); return; }
+    const [y,m,dd]=v.split('-');
+    aplicar(p,editando,{tipo:'texto',valor:'TURNO '+dd+'/'+m+'/'+y+(h?' '+h+' hs':'')});
+  };
+  const bA=document.getElementById('edAus');
+  if(bA) bA.onclick=()=>{ const d=p.todos.find(x=>x.ci===editando); aplicar(p,editando,{tipo:'texto',valor:d.texto+' (NO SE PRESENTO)'}); };
   fT.addEventListener('input',()=>{if(norm(fT.value)) fF.value='';});
   fF.addEventListener('input',()=>{if(fF.value) fT.value='';});
   document.getElementById('edCancel').onclick=()=>{editando=-1;ficha(abierta);};
@@ -840,7 +910,7 @@ function dibujarCaptura(titulo,sub,filas,nota){
   return cv;
 }
 const PLU={rojo:'vencidos',amarillo:'por vencer',naranja:'pendientes',verde:'al día',hecho:'realizados'};
-function pillDe(d){ return {txt:d.st==='amarillo'&&d.dias<=7?'¡Vence ya!':LBL[d.st],st:d.st}; }
+function pillDe(d){ if(d.turno) return {txt:lblTurno(d).replace('📅 ',''),st:'naranja'}; return {txt:d.st==='amarillo'&&d.dias<=7?'¡Vence ya!':LBL[d.st],st:d.st}; }
 function textosFecha(d){
   if(d.st==='hecho') return ['Realizado '+fmt(d.realizado),'sin vencimiento'];
   if(d.texto) return [d.texto,''];
@@ -1055,7 +1125,10 @@ document.getElementById('q').oninput=()=>{if(!esInicial())marcarNivel();render()
 document.querySelectorAll('.stat').forEach(s=>s.onclick=()=>{filtro=(filtro===s.dataset.f?'todos':s.dataset.f);if(!esInicial())marcarNivel();render();});
 document.querySelectorAll('#vista button').forEach(b=>b.onclick=()=>{vista=b.dataset.v;document.querySelectorAll('#vista button').forEach(x=>x.classList.toggle('on',x===b));if(!esInicial())marcarNivel();render();});
 document.getElementById('list').addEventListener('click',e=>{
-  if(e.target.id==='verMasProx'){verTodosProx=!verTodosProx;render();return;}const el=e.target.closest('[data-i]'); if(el){editando=-1;editP=-1;ficha(+el.dataset.i);}});
+  if(e.target.id==='verMasProx'){verTodosProx=!verTodosProx;render();return;}
+  if(e.target.id==='verMasTur'){verTodosTur=!verTodosTur;render();return;}
+  if(e.target.id==='verPasados'){verPasados=!verPasados;render();return;}
+  const el=e.target.closest('[data-i]'); if(el){editando=el.dataset.ci!=null?+el.dataset.ci:-1;editP=-1;ficha(+el.dataset.i);}});
 document.getElementById('modal').addEventListener('click',e=>{
   if(e.target.closest('.editrow')||e.target.closest('.pd-edit')||e.target.closest('a')) return;
   const pi=e.target.closest('[data-pi]'); if(pi){editP=+pi.dataset.pi;editando=-1;ficha(abierta);return;}
@@ -1067,7 +1140,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){ if(editando>=0||ed
 window.addEventListener('beforeunload',e=>{if(cambios.size){e.preventDefault();e.returnValue='';}});
 
 /* ---------- Actualización automática de la app ---------- */
-const APP_V='2026-11-22.8';
+const APP_V='2026-11-24.2';
 let avisoVersion=false;
 async function revisarVersion(){
   if(location.protocol!=='https:'&&location.hostname!=='localhost') return;
