@@ -132,6 +132,23 @@
   .edit,.edit *{min-width:0;max-width:100%}
   .editrow td{overflow:hidden}
   .btn.aus{color:#c62828;border-color:#f3b0b0;align-self:flex-start}
+  .cats{border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:var(--card);overflow:hidden}
+  .cats>.ph{padding:10px 14px;font-weight:700;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line);background:#fafbfc}
+  .cat{border-bottom:6px solid var(--bg)}
+  .cat:last-child{border-bottom:0}
+  .cat .ch{display:flex;align-items:center;gap:8px;padding:10px 14px 6px}
+  .cat .cico{font-size:20px}
+  .cat .ch .chips{margin-left:auto}
+  .cat .pr{display:flex;align-items:center;gap:10px;padding:7px 14px;border-top:1px solid #f1f2f5;cursor:pointer}
+  .cat .pr:hover{background:#fafbfc}
+  .cat .ptx{min-width:0;flex:1}
+  .cat .ptx b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cat .agr{padding:4px 14px 6px;font-size:12px;color:var(--mute)}
+  .cat .agr.ok{color:var(--grn)}
+  .cat .cbt{display:flex;gap:6px;flex-wrap:wrap;padding:4px 14px 10px}
+  .cat .cbt .vermas{margin:0}
+  .pdias.rojo{background:var(--red-bg);color:var(--red)}
+  .pdias.nar{background:var(--org-bg);color:var(--org)}
   main{padding-bottom:90px}
   .toolbar2{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-4px 0 12px}
   .toolbar2 select,.toolbar2 input[type=date]{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);max-width:100%}
@@ -388,6 +405,20 @@ function armarPersona(p){
   p.docs=docs; p.todos=todos; p.cnt=cnt;
 }
 
+// Tipos de curso ("especialidad") según el nombre del encabezado; el primero que coincide gana
+const CATS=[
+  {id:'pase', nom:'PASE (sindicato)',      ico:'🤝', rx:/^pase\b|plan de invierno|plan de verano/},
+  {id:'shell',nom:'Cliente SHELL',         ico:'🐚', rx:/shell|expectativas/},
+  {id:'pae',  nom:'Cliente PAE',           ico:'🛢️', rx:/^pae\b/},
+  {id:'doc',  nom:'Documentación y salud', ico:'🪪', rx:/\bdni\b|examen|aptitud|\bepp\b|antitet|psicofis|^art\b/},
+  {id:'man',  nom:'Licencias y manejo',    ico:'🚗', rx:/licencia|teorico|ideal driver|flota|vl4|va\/ ?vr|cpec|manejo/},
+  {id:'equ',  nom:'Equipos e izaje',       ico:'🏗️', rx:/manlift|skytrack|hidrogrua|grua|autoelevador|izaje|worklift|plataforma/},
+  {id:'seg',  nom:'Seguridad y HSE',       ico:'⛑️', rx:/altura|confinad|h2s|gases|ssma|well control|auxilios|incendio|seguridad/},
+  {id:'otros',nom:'Otros',                 ico:'📄', rx:/.*/}
+];
+const ORDEN_VISTA=['doc','man','equ','seg','shell','pae','otros','pase'];
+const CATS_VISTA=()=>ORDEN_VISTA.map(id=>CATS.find(c=>c.id===id));
+function catDe(h,g){ const k=key(h), kg=key(g||''); return (CATS.find(c=>c.id!=='otros'&&c.rx.test(k))||CATS.find(c=>c.id!=='otros'&&kg&&c.rx.test(kg))||CATS[CATS.length-1]).id; }
 function tipoCol(h){
   const sinVto=SIN_VTO.test(key(h))||/sin vencimiento/i.test(h);
   let meses=0;
@@ -417,7 +448,7 @@ function procesar(wb){
   H.forEach((h,i)=>{
     if(!h||i>uc||noDoc.has(key(h))||i<=Math.max(iA,iN)) return;   // fuera del bloque de encabezados = celda suelta, se ignora
     const tc=tipoCol(h);
-    cols.push({i,nombre:h,grupo:G[i]||'',meses:tc.meses,sinVto:tc.sinVto,letra:XLSX.utils.encode_col(range.s.c+i)});
+    cols.push({i,nombre:h,grupo:G[i]||'',meses:tc.meses,sinVto:tc.sinVto,cat:catDe(h,G[i]),letra:XLSX.utils.encode_col(range.s.c+i)});
   });
   pcols=[];
   PERS.forEach(n=>{const i=H.findIndex(h=>key(h)===key(n)); if(i>=0) pcols.push({i,nombre:H[i]==='(SAP)'?'SAP':H[i],letra:XLSX.utils.encode_col(range.s.c+i),fecha:/fecha/i.test(H[i])});});
@@ -461,6 +492,27 @@ function panelTurnos(){
     if(verPasados) html+='<div class="agr">Tocá cada uno para cargar la fecha nueva o marcar que no se presentó</div>'+pas.map(r=>'<div class="pr" data-i="'+r.i+'" data-ci="'+r.d.ci+'"><span class="pdias pas">'+fmt(r.d.turno.fecha)+'</span><div class="ptx"><b>'+esc(r.p.nombre)+'</b><div class="grp">'+esc(r.d.doc)+'</div></div><span class="pen">›</span></div>').join('');
   }
   return html+'</section>';
+}
+const catAbierta={};
+function panelCategorias(){
+  const G={}; CATS.forEach(c=>G[c.id]={prox:[],venc:[],pend:[]});
+  people.forEach((p,i)=>p.docs.forEach(d=>{ const g=G[cols[d.ci].cat];
+    if(d.st==='amarillo') g.prox.push({p,i,d}); else if(d.st==='rojo') g.venc.push({p,i,d}); else if(d.st==='naranja') g.pend.push({p,i,d}); }));
+  const fila=(r,badge,cls)=>'<div class="pr" data-i="'+r.i+'" data-ci="'+r.d.ci+'"><span class="pdias'+cls+'">'+badge+'</span><div class="ptx"><b>'+esc(r.p.nombre)+'</b><div class="grp">'+esc(r.d.doc)+(r.d.venc?' · '+fmt(r.d.venc):r.d.texto?' · '+esc(r.d.texto):'')+'</div></div><span class="pen">›</span></div>';
+  let html='', hay=false;
+  CATS_VISTA().forEach(ct=>{
+    const g=G[ct.id]; if(!g.prox.length&&!g.venc.length&&!g.pend.length) return; hay=true;
+    g.prox.sort((a,b)=>a.d.dias-b.d.dias); g.venc.sort((a,b)=>b.d.dias-a.d.dias); g.pend.sort((a,b)=>a.p.nombre.localeCompare(b.p.nombre));
+    const chip=(n,cls,t)=>n?'<span class="chip '+cls+'" title="'+t+'">'+n+'</span>':'';
+    html+='<div class="cat"><div class="ch"><span class="cico">'+ct.ico+'</span><b>'+esc(ct.nom)+'</b><span class="chips">'+chip(g.prox.length,'c-yel alerta','Vencen en 30 días')+chip(g.venc.length,'c-red','Vencidos')+chip(g.pend.length,'c-org','Pendientes')+'</span></div>';
+    html+=g.prox.length?g.prox.map(r=>fila(r,enDias(r.d.dias),r.d.dias<=7?' urg':'')).join(''):'<div class="agr ok">✓ Nada vence en los próximos '+AVISO+' días</div>';
+    const bt=(k,n,txt)=>n?'<button type="button" class="btn sm vermas" data-cat="'+ct.id+'" data-k="'+k+'">'+txt+' ('+n+') '+(catAbierta[ct.id+k]?'▲':'▼')+'</button>':'';
+    html+='<div class="cbt">'+bt('venc',g.venc.length,'🔴 Vencidos')+bt('pend',g.pend.length,'🟠 Pendientes')+'</div>';
+    if(catAbierta[ct.id+'venc']) html+=g.venc.map(r=>fila(r,'hace '+(-r.d.dias)+' d',' rojo')).join('');
+    if(catAbierta[ct.id+'pend']) html+=g.pend.map(r=>fila(r,r.d.turno&&!r.d.turno.ausente?'turno':'pend.',' nar')).join('');
+    html+='</div>';
+  });
+  return hay?'<section class="cats"><div class="ph"><span class="phi">📚</span> Vencimientos por tipo de curso</div>'+html+'</section>':'';
 }
 function panelProximos(){
   const lst=[];
@@ -507,7 +559,7 @@ const $=id=>document.getElementById(id);
 function filtrosVto(){ return {per:$('fPer').value, doc:$('fDoc').value, desde:$('fDesde').value, hasta:$('fHasta').value}; }
 function filtroActivo(F){ return !!F.per||F.doc!==''; }
 function coincide(d,F){
-  if(F.doc!==''&&d.ci!==+F.doc) return false;
+  if(F.doc!==''){ if(F.doc.startsWith('cat:')){ if(cols[d.ci].cat!==F.doc.slice(4)) return false; } else if(d.ci!==+F.doc) return false; }
   if(!F.per) return true;
   if(!d.venc) return false;
   const v=d.venc;
@@ -521,8 +573,11 @@ function coincide(d,F){
 }
 function llenarDocs(){
   const s=$('fDoc'), cur=s.value;
-  s.innerHTML='<option value="">Todos los documentos</option>'+cols.map((c,i)=>'<option value="'+i+'">'+esc(c.nombre)+'</option>').join('');
-  if(cur!==''&&+cur<cols.length) s.value=cur;
+  s.innerHTML='<option value="">Todos los documentos</option>'+CATS_VISTA().map(ct=>{
+    const cs=cols.map((c,i)=>({c,i})).filter(x=>x.c.cat===ct.id); if(!cs.length) return '';
+    return '<optgroup label="'+ct.ico+' '+esc(ct.nom)+'"><option value="cat:'+ct.id+'">Todo '+esc(ct.nom)+'</option>'+cs.map(x=>'<option value="'+x.i+'">'+esc(x.c.nombre)+'</option>').join('')+'</optgroup>';
+  }).join('');
+  if(cur!==''&&[...s.options].some(o=>o.value===cur)) s.value=cur;
 }
 function listaPersonas(q,F){
   let ps=people.filter(p=>!q||key(p.nombre+' '+p.id+' '+p.sap+' '+p.tarea+' '+p.pvals.map(v=>v instanceof Date?'':String(v==null?'':v)).join(' ')).includes(q)||p.docs.some(d=>key(d.doc).includes(q)));
@@ -547,7 +602,7 @@ function render(){
   if(vista==='personas'){
     const F=filtrosVto(), FA=filtroActivo(F), ps=listaPersonas(q,F);
     if(!ps.length){L.innerHTML='<div class="empty">Sin resultados.</div>';return;}
-    const panel=(filtro==='todos'&&!q&&!FA?panelTurnos():'')+((filtro==='todos'||filtro==='amarillo')&&!q&&!FA?panelProximos():'');
+    const panel=(filtro==='todos'&&!q&&!FA?panelTurnos():'')+((filtro==='todos'||filtro==='amarillo')&&!q&&!FA?panelCategorias():'');
     L.innerHTML=panel+'<div class="grid">'+ps.map(p=>{
       const prox=p.docs.filter(d=>d.st==='amarillo').sort((a,b)=>a.dias-b.dias)[0];
       const coinc=FA?p.docs.filter(d=>coincide(d,F)).sort((a,b)=>(a.venc||0)-(b.venc||0)):[];
@@ -921,7 +976,7 @@ function descripcionFiltros(){
   const F=filtrosVto(), q=norm($('q').value), parts=[];
   if(filtro!=='todos') parts.push({rojo:'Vencidos',amarillo:'Vencen en 30 días',naranja:'Pendientes / turnos'}[filtro]);
   if(F.per){ let t=$('fPer').selectedOptions[0].text; if(F.per==='rango') t='Vencen entre '+(F.desde?fmt(new Date(F.desde+'T00:00')):'…')+' y '+(F.hasta?fmt(new Date(F.hasta+'T00:00')):'…'); parts.push(t); }
-  if(F.doc!=='') parts.push('Documento: '+cols[+F.doc].nombre);
+  if(F.doc!=='') parts.push(F.doc.startsWith('cat:')?'Tipo: '+CATS.find(c=>c.id===F.doc.slice(4)).nom:'Documento: '+cols[+F.doc].nombre);
   if(q) parts.push('Búsqueda: "'+q+'"');
   return parts.join(' · ');
 }
@@ -1008,7 +1063,7 @@ function formCurso(){
     const ult=cols[cols.length-1];
     cambios.set(ref,{ref,row:filaEnc,col:range.s.c+i,letra,header:true,tipo:'texto',valor:enc,estiloRef:ult?ult.letra+filaEnc:null});
     const tc=tipoCol(enc);
-    cols.push({i,nombre:enc,grupo:'',meses:tc.meses,sinVto:tc.sinVto,letra});
+    cols.push({i,nombre:enc,grupo:'',meses:tc.meses,sinVto:tc.sinVto,cat:catDe(enc,''),letra});
     people.forEach(p=>{p.vals.push(null);armarPersona(p);});
     llenarDocs(); barra(); cerrarForm(); render();
     aviso('Curso agregado. Cargá las fechas en las fichas y tocá Guardar.');
@@ -1128,6 +1183,7 @@ document.getElementById('list').addEventListener('click',e=>{
   if(e.target.id==='verMasProx'){verTodosProx=!verTodosProx;render();return;}
   if(e.target.id==='verMasTur'){verTodosTur=!verTodosTur;render();return;}
   if(e.target.id==='verPasados'){verPasados=!verPasados;render();return;}
+  const bc=e.target.closest('[data-cat]'); if(bc){ const k=bc.dataset.cat+bc.dataset.k; catAbierta[k]=!catAbierta[k]; render(); return; }
   const el=e.target.closest('[data-i]'); if(el){editando=el.dataset.ci!=null?+el.dataset.ci:-1;editP=-1;ficha(+el.dataset.i);}});
 document.getElementById('modal').addEventListener('click',e=>{
   if(e.target.closest('.editrow')||e.target.closest('.pd-edit')||e.target.closest('a')) return;
@@ -1140,7 +1196,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){ if(editando>=0||ed
 window.addEventListener('beforeunload',e=>{if(cambios.size){e.preventDefault();e.returnValue='';}});
 
 /* ---------- Actualización automática de la app ---------- */
-const APP_V='2026-11-24.2';
+const APP_V='2026-11-28.1';
 let avisoVersion=false;
 async function revisarVersion(){
   if(location.protocol!=='https:'&&location.hostname!=='localhost') return;
